@@ -37,18 +37,25 @@ class EST_Admin {
 		}
 		?>
 		<style>
-			.est-wrap .est-card { background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 16px 20px; margin: 16px 0; max-width: 1100px; }
-			.est-wrap .est-card h2 { margin-top: 0; }
-			.est-wrap .est-progress { display: inline-block; width: 70px; height: 6px; background: #eee; border-radius: 3px; vertical-align: middle; margin-inline-end: 6px; overflow: hidden; }
-			.est-wrap .est-progress span { display: block; height: 100%; background: #2271b1; }
+			.est-wrap { max-width: 1160px; }
+			.est-wrap > h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+			.est-wrap > h1::before { content: "\f326"; font-family: dashicons; font-size: 22px; color: #fff; background: #2271b1; border-radius: 8px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; font-weight: 400; }
+			.est-wrap .est-card { background: #fff; border: 1px solid #e2e4e7; border-radius: 10px; padding: 20px 24px; margin: 18px 0; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+			.est-wrap .est-card h2 { margin: 0 0 14px; font-size: 15px; font-weight: 600; padding-bottom: 12px; border-bottom: 1px solid #f0f0f1; }
+			.est-wrap table.widefat { border: 1px solid #e2e4e7; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+			.est-wrap table.widefat thead th, .est-wrap table.widefat thead td { background: #f6f7f7; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: #50575e; border-bottom: 1px solid #e2e4e7; }
+			.est-wrap table.widefat td, .est-wrap table.widefat th { vertical-align: middle; padding-top: 10px; padding-bottom: 10px; }
+			.est-wrap .est-progress { display: inline-block; width: 80px; height: 6px; background: #eef0f2; border-radius: 99px; vertical-align: middle; margin-inline-end: 8px; overflow: hidden; }
+			.est-wrap .est-progress span { display: block; height: 100%; background: linear-gradient(90deg, #2271b1, #3f9be0); border-radius: 99px; }
 			.est-wrap .est-editor td { vertical-align: top; }
-			.est-wrap .est-editor textarea { width: 100%; min-height: 48px; }
-			.est-wrap .est-source { white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+			.est-wrap .est-editor textarea { width: 100%; min-height: 48px; border-radius: 6px; }
+			.est-wrap .est-source { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: #1d2327; }
 			.est-wrap .est-muted { color: #646970; }
 			.est-wrap .est-inline-form { display: inline; }
-			.est-wrap table.widefat td, .est-wrap table.widefat th { vertical-align: middle; }
 			.est-wrap .est-lang-table input[type=text] { width: 100%; }
-			.est-wrap code.est-big { font-size: 13px; padding: 3px 6px; }
+			.est-wrap select, .est-wrap input[type=text], .est-wrap input[type=file] { border-radius: 6px; }
+			.est-wrap .button { border-radius: 6px; }
+			.est-wrap code.est-big { font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 		</style>
 		<?php
 	}
