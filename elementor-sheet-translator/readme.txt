@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -50,4 +50,7 @@ the sheet; the import creates the language for you.
   the language's Custom CSS box, e.g. `.est-dir-rtl .my-box { text-align: right; }`.
 * If a widget text is missing from the export, add its setting key under
   "Extra Elementor setting keys to translate".
-* Uploaded images are shared between languages.
+* Images: Sheet Translator > Images lets you pick a different image per language
+  (image widgets, backgrounds, galleries, post images). Tick "Include image URLs" on
+  export to get an "Images" sheet; on import, rows whose column A is an image URL are
+  mapped automatically.
