@@ -84,7 +84,7 @@ class EST_Frontend {
 
 	public static function translate( $text ) {
 		$t = self::lookup( $text );
-		return null === $t ? $text : $t;
+		return null === $t ? $text : EST_Text::keep_spacing( $text, $t );
 	}
 
 	public static function elementor_data( $data ) {

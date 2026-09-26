@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Elementor Sheet Translator
  * Description:       Translate an Elementor-built website (pages, headers, footers, popups, templates, menus) with spreadsheets. Export every page to Excel/CSV with English in the first column, fill in the language columns, import it back. Adds /ar/-style language URLs, correct RTL/LTR output and an Elementor Language Switcher widget.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            ArtiBits
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'EST_VERSION', '1.1.0' );
+define( 'EST_VERSION', '1.1.1' );
 define( 'EST_FILE', __FILE__ );
 define( 'EST_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EST_URL', plugin_dir_url( __FILE__ ) );
