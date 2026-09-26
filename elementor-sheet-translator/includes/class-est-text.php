@@ -22,6 +22,16 @@ class EST_Text {
 		return trim( $text );
 	}
 
+	/**
+	 * Put the original's leading/trailing whitespace around a translation, so
+	 * "The " + "Way" style heading parts keep their spacing ("La " + "Méthode").
+	 */
+	public static function keep_spacing( $original, $translated ) {
+		preg_match( '/^(\s*)/u', (string) $original, $lead );
+		preg_match( '/(\s*)$/u', (string) $original, $trail );
+		return ( $lead[1] ?? '' ) . trim( (string) $translated ) . ( $trail[1] ?? '' );
+	}
+
 	public static function hash( $text ) {
 		return md5( self::normalize( $text ) );
 	}

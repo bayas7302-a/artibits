@@ -97,7 +97,7 @@ class EST_Html {
 				if ( null === $t || '' === $t ) {
 					return $m[0];
 				}
-				return '<' . $m[1] . $m[2] . '>' . $t . '</' . $m[1] . '>';
+				return '<' . $m[1] . $m[2] . '>' . EST_Text::keep_spacing( $m[3], $t ) . '</' . $m[1] . '>';
 			},
 			$html
 		);

@@ -211,7 +211,7 @@ class EST_Extractor {
 			if ( self::is_translatable_key( $key ) && self::is_translatable_value( $value ) ) {
 				$translated = call_user_func( $lookup, $value );
 				if ( null !== $translated && '' !== $translated ) {
-					$settings[ $key ] = $translated;
+					$settings[ $key ] = EST_Text::keep_spacing( $value, $translated );
 				}
 			}
 		}
