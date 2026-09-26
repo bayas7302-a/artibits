@@ -16,6 +16,7 @@ class EST_Router {
 	private static $current   = null;
 	private static $home_path = '';
 	private static $request   = '/';
+	private static $parsing   = false;
 
 	/**
 	 * Runs while plugins load: read the language from the URL.
@@ -85,6 +86,10 @@ class EST_Router {
 		add_filter( 'language_attributes', array( __CLASS__, 'language_attributes' ), 99 );
 		add_filter( 'body_class', array( __CLASS__, 'body_class' ) );
 		add_filter( 'home_url', array( __CLASS__, 'filter_home_url' ), 20, 4 );
+		// WordPress reads home_url() while matching the request to a page; it must
+		// see the real home (e.g. /off-24) there, or every page path 404s.
+		add_filter( 'do_parse_request', array( __CLASS__, 'parse_start' ), 999 );
+		add_action( 'parse_request', array( __CLASS__, 'parse_end' ), 0 );
 		add_filter( 'redirect_canonical', array( __CLASS__, 'redirect_canonical' ), 20, 2 );
 		add_filter( 'nav_menu_link_attributes', array( __CLASS__, 'menu_link' ), 20 );
 	}
@@ -206,8 +211,17 @@ class EST_Router {
 		return $classes;
 	}
 
+	public static function parse_start( $do ) {
+		self::$parsing = (bool) $do;
+		return $do;
+	}
+
+	public static function parse_end() {
+		self::$parsing = false;
+	}
+
 	public static function filter_home_url( $url, $path, $orig_scheme, $blog_id = null ) {
-		if ( 'rest' === $orig_scheme || ( is_admin() && ! wp_doing_ajax() ) ) {
+		if ( self::$parsing || 'rest' === $orig_scheme || ( is_admin() && ! wp_doing_ajax() ) ) {
 			return $url;
 		}
 		return self::localize_url( $url, self::$current );
