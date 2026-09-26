@@ -28,7 +28,7 @@ class EST_Switcher {
 
 	public static function defaults() {
 		return array(
-			'style'        => 'dropdown', // dropdown | list.
+			'style'        => 'toggle',   // toggle | dropdown | list.
 			'display'      => 'native',   // native | name | code | code_native.
 			'show_current' => 'yes',      // list style: include the active language.
 			'separator'    => '',         // list style: text between items, e.g. "|".
@@ -83,8 +83,13 @@ class EST_Switcher {
 			);
 		};
 
-		if ( 'list' === $args['style'] ) {
-			$html = '<ul class="est-switcher est-switcher--list">';
+		if ( 'toggle' === $args['style'] ) {
+			// Segmented button: one outlined box, the active language filled.
+			$args['show_current'] = 'yes';
+			$args['separator']    = '';
+		}
+		if ( 'list' === $args['style'] || 'toggle' === $args['style'] ) {
+			$html = '<ul class="est-switcher est-switcher--' . ( 'toggle' === $args['style'] ? 'toggle' : 'list' ) . '">';
 			$first = true;
 			foreach ( $items as $code => $item ) {
 				if ( $item['active'] && 'yes' !== $args['show_current'] ) {

@@ -7,6 +7,12 @@
 .est-switcher--list .est-switcher__item.is-active a { font-weight: 600; }
 .est-switcher__sep { opacity: .5; }
 
+/* Toggle buttons: one outlined box, active language filled with the same colour */
+.est-switcher--toggle { --est-color: #000; --est-active-text: #fff; display: inline-flex; gap: 0; border: 1px solid var(--est-color); }
+.est-switcher--toggle li { margin: 0; padding: 0; }
+.est-switcher--toggle a { display: block; padding: 6px 14px; line-height: 1.3; color: var(--est-color); background: transparent; transition: background .2s, color .2s; }
+.est-switcher--toggle .is-active a { background: var(--est-color); color: var(--est-active-text); }
+
 /* Dropdown */
 .est-switcher--dropdown { position: relative; display: inline-block; }
 .est-switcher__current {
