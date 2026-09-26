@@ -1,0 +1,33 @@
+.est-switcher { --est-bg: #fff; --est-radius: 6px; font-size: inherit; line-height: 1.4; }
+.est-switcher ul, ul.est-switcher { list-style: none; margin: 0; padding: 0; }
+.est-switcher a { color: inherit; text-decoration: none; }
+
+/* Inline list */
+.est-switcher--list { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.est-switcher--list .est-switcher__item.is-active a { font-weight: 600; }
+.est-switcher__sep { opacity: .5; }
+
+/* Dropdown */
+.est-switcher--dropdown { position: relative; display: inline-block; }
+.est-switcher__current {
+	display: inline-flex; align-items: center; gap: 8px;
+	background: transparent; border: 0; padding: 6px 4px; margin: 0;
+	color: inherit; font: inherit; cursor: pointer; line-height: inherit;
+}
+.est-switcher__caret { transition: transform .2s ease; }
+.est-switcher.is-open .est-switcher__caret { transform: rotate(180deg); }
+.est-switcher__menu {
+	position: absolute; top: 100%; inset-inline-start: 0; z-index: 9999;
+	min-width: 150px; padding: 6px 0 !important;
+	background: var(--est-bg); border-radius: var(--est-radius);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+	opacity: 0; visibility: hidden; transform: translateY(6px);
+	transition: opacity .2s ease, transform .2s ease, visibility .2s;
+}
+.est-switcher--align-end .est-switcher__menu { inset-inline-start: auto; inset-inline-end: 0; }
+.est-switcher.is-open .est-switcher__menu,
+.est-switcher--hover:hover .est-switcher__menu,
+.est-switcher--hover:focus-within .est-switcher__menu { opacity: 1; visibility: visible; transform: none; }
+.est-switcher__menu a { display: block; padding: 8px 16px; color: #1a1a1a; white-space: nowrap; }
+.est-switcher__menu a:hover, .est-switcher__menu a:focus { background: rgba(0, 0, 0, .05); }
+.est-switcher__menu .is-active a { font-weight: 600; }
