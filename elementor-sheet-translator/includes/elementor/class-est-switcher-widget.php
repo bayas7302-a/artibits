@@ -51,8 +51,9 @@ class EST_Switcher_Widget extends Widget_Base {
 			array(
 				'label'   => __( 'Layout', 'est' ),
 				'type'    => Controls_Manager::SELECT,
-				'default' => 'dropdown',
+				'default' => 'toggle',
 				'options' => array(
+					'toggle'   => __( 'Toggle buttons', 'est' ),
 					'dropdown' => __( 'Dropdown', 'est' ),
 					'list'     => __( 'Inline list', 'est' ),
 				),
@@ -155,7 +156,7 @@ class EST_Switcher_Widget extends Widget_Base {
 			Group_Control_Typography::get_type(),
 			array(
 				'name'     => 'typography',
-				'selector' => '{{WRAPPER}} .est-switcher--list a, {{WRAPPER}} .est-switcher__current',
+				'selector' => '{{WRAPPER}} .est-switcher--list a, {{WRAPPER}} .est-switcher--toggle a, {{WRAPPER}} .est-switcher__current',
 			)
 		);
 
@@ -164,6 +165,7 @@ class EST_Switcher_Widget extends Widget_Base {
 			array(
 				'label'     => __( 'Color', 'est' ),
 				'type'      => Controls_Manager::COLOR,
+				'condition' => array( 'style!' => 'toggle' ),
 				'selectors' => array( '{{WRAPPER}} .est-switcher--list a, {{WRAPPER}} .est-switcher__current' => 'color: {{VALUE}};' ),
 			)
 		);
@@ -173,6 +175,7 @@ class EST_Switcher_Widget extends Widget_Base {
 			array(
 				'label'     => __( 'Hover color', 'est' ),
 				'type'      => Controls_Manager::COLOR,
+				'condition' => array( 'style!' => 'toggle' ),
 				'selectors' => array( '{{WRAPPER}} .est-switcher--list a:hover, {{WRAPPER}} .est-switcher__current:hover' => 'color: {{VALUE}};' ),
 			)
 		);
@@ -184,6 +187,39 @@ class EST_Switcher_Widget extends Widget_Base {
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array( '{{WRAPPER}} .est-switcher--list .is-active a' => 'color: {{VALUE}};' ),
 				'condition' => array( 'style' => 'list' ),
+			)
+		);
+
+		$this->add_control(
+			'toggle_color',
+			array(
+				'label'     => __( 'Color', 'est' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '#000000',
+				'selectors' => array( '{{WRAPPER}} .est-switcher--toggle' => '--est-color: {{VALUE}};' ),
+				'condition' => array( 'style' => 'toggle' ),
+			)
+		);
+
+		$this->add_control(
+			'toggle_active_text',
+			array(
+				'label'     => __( 'Active text color', 'est' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '#ffffff',
+				'selectors' => array( '{{WRAPPER}} .est-switcher--toggle' => '--est-active-text: {{VALUE}};' ),
+				'condition' => array( 'style' => 'toggle' ),
+			)
+		);
+
+		$this->add_responsive_control(
+			'toggle_padding',
+			array(
+				'label'      => __( 'Button padding', 'est' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em' ),
+				'selectors'  => array( '{{WRAPPER}} .est-switcher--toggle a' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ),
+				'condition'  => array( 'style' => 'toggle' ),
 			)
 		);
 
@@ -310,7 +346,7 @@ class EST_Switcher_Widget extends Widget_Base {
 
 		$html = EST_Switcher::render(
 			array(
-				'style'        => $s['style'] ?? 'dropdown',
+				'style'        => $s['style'] ?? 'toggle',
 				'display'      => $s['display'] ?? 'native',
 				'show_current' => $s['show_current'] ?? 'yes',
 				'separator'    => $s['separator'] ?? '',

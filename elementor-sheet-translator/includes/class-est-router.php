@@ -58,6 +58,20 @@ class EST_Router {
 
 		self::$request          = self::$home_path . $rest . ( '' !== $query ? '?' . $query : '' );
 		$_SERVER['REQUEST_URI'] = self::$request;
+
+		// Some servers also pass the original path in PATH_INFO, which WordPress
+		// prefers over REQUEST_URI when matching the page; strip it there too.
+		foreach ( array( 'PATH_INFO', 'ORIG_PATH_INFO' ) as $key ) {
+			if ( ! empty( $_SERVER[ $key ] ) ) {
+				$info = (string) $_SERVER[ $key ]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+				foreach ( array( self::$home_path . '/' . $code, '/' . $code ) as $prefix ) {
+					if ( 0 === stripos( $info . '/', $prefix . '/' ) ) {
+						$_SERVER[ $key ] = substr( $info, 0, strlen( $prefix ) - strlen( '/' . $code ) ) . ( substr( $info, strlen( $prefix ) ) ?: '/' );
+						break;
+					}
+				}
+			}
+		}
 	}
 
 	private static function code_from_path( $path ) {
