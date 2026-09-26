@@ -67,17 +67,33 @@ class EST_Frontend {
 		return isset( $dict[ $hash ] ) ? $dict[ $hash ] : null;
 	}
 
+	private static $images = null;
+
+	/** Replaced images for the current language: original URL => new URL. */
+	public static function images() {
+		if ( null === self::$images ) {
+			self::$images = EST_Store::images( EST_Router::current() );
+		}
+		return self::$images;
+	}
+
+	public static function image( $url ) {
+		$map = self::images();
+		return $map[ $url ] ?? null;
+	}
+
 	public static function translate( $text ) {
 		$t = self::lookup( $text );
 		return null === $t ? $text : $t;
 	}
 
 	public static function elementor_data( $data ) {
-		if ( ! is_array( $data ) || ! self::dict() ) {
+		if ( ! is_array( $data ) || ( ! self::dict() && ! self::images() ) ) {
 			return $data;
 		}
 		EST_Extractor::$extra_keys = EST_Content::extra_keys();
-		return EST_Extractor::translate( $data, array( __CLASS__, 'lookup' ) );
+		$data = EST_Extractor::translate( $data, array( __CLASS__, 'lookup' ) );
+		return self::images() ? EST_Extractor::translate_images( $data, array( __CLASS__, 'image' ) ) : $data;
 	}
 
 	public static function post_content( $content ) {
@@ -133,7 +149,36 @@ class EST_Frontend {
 				return EST_Router::localize_url( $url, $code );
 			}
 			: null;
-		return EST_Html::process( $html, $lookup, $link );
+		$html = EST_Html::process( $html, $lookup, $link );
+
+		// Replaced images anywhere else in the page (block content, inline styles, JSON settings).
+		$swap = array();
+		foreach ( self::images() as $from => $to ) {
+			$swap[ $from ]                          = $to;
+			$swap[ str_replace( '/', '\\/', $from ) ] = str_replace( '/', '\\/', $to );
+		}
+		if ( ! $swap ) {
+			return $html;
+		}
+		$html = strtr( $html, $swap );
+
+		// Background images are written into Elementor's per-page CSS files;
+		// inline a copy of any such file that uses a replaced image.
+		$uploads = wp_get_upload_dir();
+		$result  = preg_replace_callback(
+			'#<link\b[^>]*href=["\']([^"\']*/elementor/css/(?:post|loop)-\d+\.css)(?:\?[^"\']*)?["\'][^>]*>#i',
+			function ( $m ) use ( $swap, $uploads ) {
+				$file = str_replace( $uploads['baseurl'], $uploads['basedir'], $m[1] );
+				if ( 0 !== strpos( $file, $uploads['basedir'] ) || ! is_readable( $file ) ) {
+					return $m[0];
+				}
+				$css = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+				$new = strtr( $css, $swap );
+				return $new === $css ? $m[0] : '<style>' . $new . '</style>';
+			},
+			$html
+		);
+		return null === $result ? $html : $result;
 	}
 
 	/* ------------------------------------------------------------------ */

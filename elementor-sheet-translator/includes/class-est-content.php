@@ -181,6 +181,26 @@ class EST_Content {
 		return array_values( apply_filters( 'est_source_strings', $unique, $source ) );
 	}
 
+	/**
+	 * Unique image URLs of one source.
+	 *
+	 * @return string[]
+	 */
+	public static function images( $key ) {
+		$source = self::source( $key );
+		if ( ! $source || 'post' !== $source['kind'] ) {
+			return array();
+		}
+		if ( self::is_elementor( $source['id'] ) ) {
+			$data = get_post_meta( $source['id'], '_elementor_data', true );
+			$data = is_string( $data ) ? json_decode( $data, true ) : $data;
+			return EST_Extractor::extract_images( is_array( $data ) ? $data : array() );
+		}
+		$post = get_post( $source['id'] );
+		preg_match_all( '#<img\b[^>]*\ssrc=["\']([^"\']+)#i', $post ? $post->post_content : '', $m );
+		return array_values( array_unique( array_filter( $m[1], array( 'EST_Extractor', 'is_image_url' ) ) ) );
+	}
+
 	public static function is_elementor( $post_id ) {
 		if ( 'elementor_library' === get_post_type( $post_id ) ) {
 			return true;

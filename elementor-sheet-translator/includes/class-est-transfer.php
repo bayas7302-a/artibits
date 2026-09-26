@@ -23,7 +23,7 @@ class EST_Transfer {
 	 * @param bool     $only_missing      Only rows missing a translation in one of $codes.
 	 * @return array   sheet name => rows
 	 */
-	public static function build_sheets( array $source_keys, array $codes, $include_existing = true, $only_missing = false ) {
+	public static function build_sheets( array $source_keys, array $codes, $include_existing = true, $only_missing = false, $with_images = false ) {
 		$header = array( EST_Settings::header_label( EST_Settings::default_language() ) );
 		$dicts  = array();
 		foreach ( $codes as $code ) {
@@ -60,6 +60,32 @@ class EST_Transfer {
 				continue;
 			}
 			$sheets[ $source['label'] ] = $rows;
+		}
+
+		// Images go on their own sheet, never mixed with text.
+		if ( $with_images ) {
+			$imgs = array();
+			foreach ( $codes as $code ) {
+				$imgs[ $code ] = EST_Store::images( $code );
+			}
+			$rows = array( $header );
+			$seen = array();
+			foreach ( $source_keys as $key ) {
+				foreach ( EST_Content::images( $key ) as $url ) {
+					if ( isset( $seen[ $url ] ) ) {
+						continue;
+					}
+					$seen[ $url ] = true;
+					$row          = array( $url );
+					foreach ( array_keys( $dicts ) as $code ) {
+						$row[] = ( $include_existing && isset( $imgs[ $code ][ $url ] ) ) ? $imgs[ $code ][ $url ] : '';
+					}
+					$rows[] = $row;
+				}
+			}
+			if ( count( $rows ) > 1 ) {
+				$sheets['Images'] = $rows;
+			}
 		}
 		return $sheets;
 	}
@@ -160,10 +186,19 @@ class EST_Transfer {
 					continue;
 				}
 				$report['rows']++;
+				$is_image = EST_Extractor::is_image_url( $source );
 				foreach ( $map as $col => $code ) {
 					$value = isset( $row[ $col ] ) ? trim( (string) $row[ $col ] ) : '';
 					if ( '' === $value ) {
 						continue; // Empty cells never erase existing translations.
+					}
+					if ( $is_image ) {
+						// Image rows (column A is an image URL) map automatically.
+						if ( preg_match( '#^(https?:)?//#i', $value ) && ( $overwrite || ! isset( EST_Store::images( $code )[ $source ] ) ) ) {
+							EST_Store::save( 'img:' . $code, $source, esc_url_raw( $value ) );
+							$report['images'] = ( $report['images'] ?? 0 ) + 1;
+						}
+						continue;
 					}
 					if ( ! $overwrite && null !== EST_Store::get( $code, $source ) ) {
 						$report['skipped']++;

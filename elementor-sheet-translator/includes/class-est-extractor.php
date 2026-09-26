@@ -113,6 +113,58 @@ class EST_Extractor {
 		return $elements;
 	}
 
+	const IMAGE_EXT = '/\.(jpe?g|png|gif|webp|avif|svg)(\?.*)?$/i';
+
+	public static function is_image_url( $v ) {
+		return is_string( $v ) && (bool) preg_match( '#^(https?:)?//#i', trim( $v ) ) && (bool) preg_match( self::IMAGE_EXT, trim( $v ) );
+	}
+
+	/**
+	 * Unique image URLs used in an element tree (image widgets, backgrounds,
+	 * galleries, carousels...: any setting array holding an image "url").
+	 *
+	 * @return string[]
+	 */
+	public static function extract_images( $elements ) {
+		$out = array();
+		array_walk_recursive(
+			$elements,
+			function ( $v, $k ) use ( &$out ) {
+				if ( 'url' === $k && self::is_image_url( $v ) ) {
+					$out[ trim( $v ) ] = true;
+				}
+			}
+		);
+		return array_keys( $out );
+	}
+
+	/**
+	 * Swap image URLs (and their attachment IDs, which Elementor renders from).
+	 *
+	 * @param callable $lookup function( string $url ): ?string new URL.
+	 */
+	public static function translate_images( $data, $lookup ) {
+		if ( ! is_array( $data ) ) {
+			return $data;
+		}
+		if ( isset( $data['url'] ) && self::is_image_url( $data['url'] ) ) {
+			$new = call_user_func( $lookup, trim( $data['url'] ) );
+			if ( $new ) {
+				$data['url'] = $new;
+				if ( array_key_exists( 'id', $data ) ) {
+					$id         = function_exists( 'attachment_url_to_postid' ) ? attachment_url_to_postid( $new ) : 0;
+					$data['id'] = $id ? $id : '';
+				}
+			}
+		}
+		foreach ( $data as $k => $v ) {
+			if ( is_array( $v ) ) {
+				$data[ $k ] = self::translate_images( $v, $lookup );
+			}
+		}
+		return $data;
+	}
+
 	private static function walk_elements( array $elements, array &$out ) {
 		foreach ( $elements as $element ) {
 			if ( ! is_array( $element ) ) {

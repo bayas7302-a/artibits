@@ -16,6 +16,7 @@ class EST_Admin {
 		add_action( 'admin_post_est_export', array( __CLASS__, 'handle_export' ) );
 		add_action( 'admin_post_est_import', array( __CLASS__, 'handle_import' ) );
 		add_action( 'admin_post_est_save_translations', array( __CLASS__, 'handle_save_translations' ) );
+		add_action( 'admin_post_est_save_images', array( __CLASS__, 'handle_save_images' ) );
 		add_action( 'admin_post_est_save_settings', array( __CLASS__, 'handle_save_settings' ) );
 		add_action( 'admin_post_est_add_language', array( __CLASS__, 'handle_add_language' ) );
 		add_action( 'admin_post_est_delete_language', array( __CLASS__, 'handle_delete_language' ) );
@@ -27,6 +28,7 @@ class EST_Admin {
 		add_submenu_page( 'est', __( 'Content & Export', 'est' ), __( 'Content & Export', 'est' ), self::CAP, 'est', array( __CLASS__, 'page_content' ) );
 		add_submenu_page( 'est', __( 'Import', 'est' ), __( 'Import', 'est' ), self::CAP, 'est-import', array( __CLASS__, 'page_import' ) );
 		add_submenu_page( 'est', __( 'Edit Translations', 'est' ), __( 'Edit Translations', 'est' ), self::CAP, 'est-editor', array( __CLASS__, 'page_editor' ) );
+		add_submenu_page( 'est', __( 'Images', 'est' ), __( 'Images', 'est' ), self::CAP, 'est-images', array( __CLASS__, 'page_images' ) );
 		add_submenu_page( 'est', __( 'Languages & Settings', 'est' ), __( 'Languages & Settings', 'est' ), self::CAP, 'est-languages', array( __CLASS__, 'page_languages' ) );
 	}
 
@@ -55,6 +57,11 @@ class EST_Admin {
 			.est-wrap .est-lang-table input[type=text] { width: 100%; }
 			.est-wrap select, .est-wrap input[type=text], .est-wrap input[type=file] { border-radius: 6px; }
 			.est-wrap .button { border-radius: 6px; }
+			.est-wrap .est-thumb { width: 96px; height: 64px; object-fit: cover; border-radius: 6px; background: #f0f0f1; display: block; }
+			.est-wrap .est-thumb[hidden] { display: none; }
+			.est-wrap .est-url { font-size: 12px; margin-bottom: 4px; word-break: break-all; }
+			.est-wrap .est-images .button { margin-top: 6px; }
+			.est-wrap .est-images .est-clear { margin: 6px 0 0 8px; }
 			.est-wrap code.est-big { font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 		</style>
 		<?php
@@ -148,7 +155,8 @@ class EST_Admin {
 					<?php endif; ?>
 					<p>
 						<label><input type="checkbox" name="include_existing" value="1" checked> <?php esc_html_e( 'Pre-fill translations that already exist (untick to get empty language cells)', 'est' ); ?></label><br>
-						<label><input type="checkbox" name="only_missing" value="1"> <?php esc_html_e( 'Only rows that still need a translation', 'est' ); ?></label>
+						<label><input type="checkbox" name="only_missing" value="1"> <?php esc_html_e( 'Only rows that still need a translation', 'est' ); ?></label><br>
+						<label><input type="checkbox" name="with_images" value="1"> <?php esc_html_e( 'Include image URLs (on a separate "Images" sheet)', 'est' ); ?></label>
 					</p>
 					<p><?php esc_html_e( 'Tick pages in the table below to export only those; with nothing ticked, everything is exported.', 'est' ); ?></p>
 					<?php submit_button( __( 'Download export', 'est' ), 'primary', 'submit', false ); ?>
@@ -233,7 +241,7 @@ class EST_Admin {
 		$miss  = ! empty( $_REQUEST['only_missing'] );
 		// phpcs:enable
 
-		$sheets = EST_Transfer::build_sheets( $keys, $codes, $fill, $miss );
+		$sheets = EST_Transfer::build_sheets( $keys, $codes, $fill, $miss, ! empty( $_REQUEST['with_images'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( ! $sheets ) {
 			self::back( 'est', __( 'Nothing to export: every selected text is already translated.', 'est' ), true );
 		}
@@ -308,6 +316,9 @@ class EST_Admin {
 						<?php endforeach; ?>
 						<?php if ( ! $report['saved'] ) : ?>
 							<li><?php esc_html_e( 'No translations found. Make sure the language columns (B, C...) are filled in.', 'est' ); ?></li>
+						<?php endif; ?>
+						<?php if ( ! empty( $report['images'] ) ) : ?>
+							<li><?php echo (int) $report['images']; ?> <?php esc_html_e( 'image replacements saved', 'est' ); ?></li>
 						<?php endif; ?>
 						<?php if ( $report['skipped'] ) : ?>
 							<li><?php echo (int) $report['skipped']; ?> <?php esc_html_e( 'existing translations kept (overwrite was off).', 'est' ); ?></li>
@@ -482,6 +493,146 @@ class EST_Admin {
 			'est-editor',
 			/* translators: %d: count */
 			sprintf( __( '%d translation(s) updated.', 'est' ), $saved ),
+			false,
+			array(
+				'source' => rawurlencode( $key ),
+				'lang'   => $code,
+			)
+		);
+	}
+
+	/* =====================================================================
+	 * Images
+	 * ================================================================== */
+
+	public static function page_images() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		$langs   = EST_Settings::languages();
+		$sources = array_filter(
+			EST_Content::sources(),
+			function ( $s ) {
+				return 'post' === $s['kind'];
+			}
+		);
+		$key     = isset( $_GET['source'] ) ? sanitize_text_field( wp_unslash( $_GET['source'] ) ) : (string) key( $sources );
+		$code    = isset( $_GET['lang'] ) ? sanitize_text_field( wp_unslash( $_GET['lang'] ) ) : (string) key( $langs );
+		// phpcs:enable
+		$lang = EST_Settings::language( $code );
+		wp_enqueue_media();
+		?>
+		<div class="wrap est-wrap">
+			<h1><?php esc_html_e( 'Images', 'est' ); ?></h1>
+			<?php self::notice(); ?>
+			<?php self::no_languages_notice(); ?>
+			<p class="est-muted"><?php esc_html_e( 'Show a different image on translated pages. Leave a field empty to keep the original image.', 'est' ); ?></p>
+
+			<form method="get" class="est-card">
+				<input type="hidden" name="page" value="est-images">
+				<select name="source">
+					<?php foreach ( $sources as $k => $s ) : ?>
+						<option value="<?php echo esc_attr( $k ); ?>" <?php selected( $key, $k ); ?>><?php echo esc_html( $s['label'] ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<select name="lang">
+					<?php foreach ( $langs as $c => $l ) : ?>
+						<option value="<?php echo esc_attr( $c ); ?>" <?php selected( $code, $c ); ?>><?php echo esc_html( EST_Settings::header_label( $l ) ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<?php submit_button( __( 'Open', 'est' ), 'secondary', '', false ); ?>
+			</form>
+
+			<?php
+			if ( $lang && EST_Content::source( $key ) ) :
+				$images = EST_Content::images( $key );
+				$map    = EST_Store::images( $code );
+				if ( ! $images ) {
+					echo '<p>' . esc_html__( 'No images found on this page.', 'est' ) . '</p>';
+				} else {
+					?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php wp_nonce_field( 'est_save_images' ); ?>
+						<input type="hidden" name="action" value="est_save_images">
+						<input type="hidden" name="source" value="<?php echo esc_attr( $key ); ?>">
+						<input type="hidden" name="lang" value="<?php echo esc_attr( $code ); ?>">
+						<table class="widefat striped est-images">
+							<thead><tr>
+								<th style="width:120px"><?php esc_html_e( 'Original', 'est' ); ?></th>
+								<th><?php echo esc_html( EST_Settings::header_label( $lang ) ); ?></th>
+								<th style="width:120px"><?php esc_html_e( 'Preview', 'est' ); ?></th>
+							</tr></thead>
+							<tbody>
+							<?php foreach ( $images as $url ) : ?>
+								<?php $new = $map[ $url ] ?? ''; ?>
+								<tr>
+									<td><img src="<?php echo esc_url( $url ); ?>" alt="" class="est-thumb"></td>
+									<td>
+										<div class="est-muted est-url"><?php echo esc_html( wp_basename( $url ) ); ?></div>
+										<input type="url" name="img[<?php echo esc_attr( md5( $url ) ); ?>]" value="<?php echo esc_attr( $new ); ?>" class="large-text est-img-input" placeholder="<?php esc_attr_e( 'Same as original', 'est' ); ?>">
+										<button type="button" class="button est-pick"><?php esc_html_e( 'Choose image', 'est' ); ?></button>
+										<button type="button" class="button-link est-clear"><?php esc_html_e( 'Reset', 'est' ); ?></button>
+									</td>
+									<td><img src="<?php echo esc_url( $new ); ?>" alt="" class="est-thumb est-preview" <?php echo $new ? '' : 'hidden'; ?>></td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+						<?php submit_button( __( 'Save images', 'est' ) ); ?>
+					</form>
+					<script>
+					jQuery( function ( $ ) {
+						$( '.est-images' ).on( 'click', '.est-pick', function () {
+							var row = $( this ).closest( 'tr' );
+							var frame = wp.media( { title: '<?php echo esc_js( __( 'Choose image', 'est' ) ); ?>', library: { type: 'image' }, multiple: false } );
+							frame.on( 'select', function () {
+								var url = frame.state().get( 'selection' ).first().toJSON().url;
+								row.find( '.est-img-input' ).val( url ).trigger( 'change' );
+							} );
+							frame.open();
+						} ).on( 'click', '.est-clear', function () {
+							$( this ).closest( 'tr' ).find( '.est-img-input' ).val( '' ).trigger( 'change' );
+						} ).on( 'change input', '.est-img-input', function () {
+							var v = $( this ).val(), img = $( this ).closest( 'tr' ).find( '.est-preview' );
+							img.attr( 'src', v ).prop( 'hidden', ! v );
+						} );
+					} );
+					</script>
+					<?php
+				}
+			endif;
+			?>
+		</div>
+		<?php
+	}
+
+	public static function handle_save_images() {
+		self::check( 'est_save_images' );
+		$key  = isset( $_POST['source'] ) ? sanitize_text_field( wp_unslash( $_POST['source'] ) ) : '';
+		$code = isset( $_POST['lang'] ) ? sanitize_text_field( wp_unslash( $_POST['lang'] ) ) : '';
+		$in   = isset( $_POST['img'] ) ? (array) wp_unslash( $_POST['img'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( ! EST_Settings::language( $code ) || ! EST_Content::source( $key ) ) {
+			self::back( 'est-images', __( 'Unknown page or language.', 'est' ), true );
+		}
+		$map   = EST_Store::images( $code );
+		$saved = 0;
+		foreach ( EST_Content::images( $key ) as $url ) {
+			$h = md5( $url );
+			if ( ! array_key_exists( $h, $in ) ) {
+				continue;
+			}
+			$new = esc_url_raw( trim( (string) $in[ $h ] ) );
+			if ( $new === $url ) {
+				$new = '';
+			}
+			if ( $new !== ( $map[ $url ] ?? '' ) ) {
+				EST_Store::save( 'img:' . $code, $url, $new );
+				$saved++;
+			}
+		}
+		self::flush_caches();
+		self::back(
+			'est-images',
+			/* translators: %d: count */
+			sprintf( __( '%d image(s) updated.', 'est' ), $saved ),
 			false,
 			array(
 				'source' => rawurlencode( $key ),

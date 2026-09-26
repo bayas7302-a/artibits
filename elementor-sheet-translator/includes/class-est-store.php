@@ -83,7 +83,7 @@ class EST_Store {
 		}
 		$hash        = md5( $source );
 		$translation = str_replace( array( "\r\n", "\r" ), "\n", trim( (string) $translation ) );
-		unset( self::$dicts[ $lang ] );
+		unset( self::$dicts[ $lang ], self::$dicts[ $lang . ':map' ] );
 
 		if ( '' === $translation ) {
 			return (bool) $wpdb->delete( self::table(), array( 'lang' => $lang, 'source_hash' => $hash ) );
@@ -101,6 +101,24 @@ class EST_Store {
 		);
 	}
 
+	/*
+	 * Image replacements live in the same table under the key "img:<code>",
+	 * separate from text translations.
+	 */
+	public static function images( $lang ) {
+		global $wpdb;
+		$key = 'img:' . $lang;
+		if ( ! isset( self::$dicts[ $key . ':map' ] ) ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT source, translation FROM ' . self::table() . ' WHERE lang = %s', $key ), ARRAY_N ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$map  = array();
+			foreach ( (array) $rows as $r ) {
+				$map[ $r[0] ] = $r[1];
+			}
+			self::$dicts[ $key . ':map' ] = $map;
+		}
+		return self::$dicts[ $key . ':map' ];
+	}
+
 	public static function count( $lang ) {
 		return count( self::dictionary( $lang ) );
 	}
@@ -109,6 +127,7 @@ class EST_Store {
 		global $wpdb;
 		unset( self::$dicts[ $lang ] );
 		$wpdb->delete( self::table(), array( 'lang' => $lang ) );
+		$wpdb->delete( self::table(), array( 'lang' => 'img:' . $lang ) );
 	}
 
 	public static function drop() {
