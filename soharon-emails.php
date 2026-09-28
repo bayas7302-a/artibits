@@ -83,10 +83,13 @@ function sohe_email_header( $email_heading, $email = null ) {
                     </td>
                 </tr>
                 <tr>
-                    <td class="sohe-card" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid <?php echo esc_attr( sohe_c( 'border' ) ); ?>;border-top:5px solid <?php echo esc_attr( sohe_c( 'red' ) ); ?>;border-radius:20px;">
+                    <td class="sohe-card" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid <?php echo esc_attr( sohe_c( 'border' ) ); ?>;border-radius:20px;">
                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                             <?php if ( $email_heading ) : ?>
-                                <tr><td class="sohe-hero"><h1><?php echo esc_html( $email_heading ); ?></h1></td></tr>
+                                <tr><td class="sohe-hero">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td class="sohe-accent" width="44" height="4" bgcolor="<?php echo esc_attr( sohe_c( 'red' ) ); ?>" style="width:44px;height:4px;line-height:4px;font-size:4px;padding:0;background-color:<?php echo esc_attr( sohe_c( 'red' ) ); ?>;border-radius:2px;">&nbsp;</td></tr></table>
+                                    <h1><?php echo esc_html( $email_heading ); ?></h1>
+                                </td></tr>
                             <?php endif; ?>
                             <tr>
                                 <td id="body_content" class="sohe-body-cell">
@@ -146,9 +149,9 @@ body, .sohe-body { margin:0; padding:0; background-color:{$bg}; -webkit-text-siz
 .sohe-logo { padding:0 0 22px; text-align:center; }
 .sohe-logo img { height:46px; width:auto; max-width:220px; border:0; outline:none; text-decoration:none; display:inline-block; }
 .sohe-logo-text { font-family:{$f}; font-size:22px; font-weight:700; color:{$t}; }
-.sohe-card { background-color:#ffffff; border:1px solid {$l}; border-top:5px solid {$r}; border-radius:20px; }
+.sohe-card { background-color:#ffffff; border:1px solid {$l}; border-radius:20px; }
 .sohe-hero { padding:34px 40px 6px; }
-h1 { margin:0; padding:0; font-family:{$f}; font-size:26px; font-weight:700; line-height:1.3; color:{$t}; text-align:left; text-shadow:none; }
+h1 { margin:16px 0 0; padding:0; font-family:{$f}; font-size:26px; font-weight:700; line-height:1.3; color:{$t}; text-align:left; text-shadow:none; }
 .sohe-body-cell { padding:14px 40px 36px; }
 #body_content_inner { font-family:{$f}; font-size:15px; line-height:1.65; color:{$b}; text-align:left; }
 #body_content_inner p { margin:0 0 16px; }
@@ -184,14 +187,15 @@ tfoot tr:last-child td.td .amount { color:{$r}; }
 .sohe-pill { display:inline-block; padding:4px 12px; border-radius:999px; font-family:{$f}; font-size:12px; font-weight:600; }
 .sohe-track-msg { margin:10px 0 18px !important; color:{$b}; font-size:14px; }
 .sohe-track-msg.is-stopped { color:{$r}; font-weight:600; }
-.sohe-bar { width:100%; border-radius:3px; background-color:{$l}; }
-.sohe-steps { width:100%; margin-top:10px; }
-.sohe-step { padding:0 2px; text-align:center; vertical-align:top; font-family:{$f}; font-size:11px; line-height:1.3; color:{$m}; }
-.sohe-dot { display:inline-block; width:22px; height:22px; line-height:22px; border-radius:50%; background-color:{$l}; color:{$m}; font-size:11px; font-weight:700; text-align:center; }
-.sohe-dot-done { background-color:{$g}; color:#ffffff; }
-.sohe-dot-current { background-color:{$r}; color:#ffffff; }
+#body_content .sohe-track td, #body_content .sohe-track th, #body_content .sohe-hero td { padding:0; }
+#body_content td.sohe-track-inner { padding:22px 24px; }
+.sohe-steps { width:100%; margin:4px 0 0; }
+.sohe-step-label { font-family:{$f}; font-size:14px; line-height:1.4; color:{$m}; }
 .sohe-step-done, .sohe-step-current { color:{$t}; font-weight:600; }
-.sohe-step-date { display:block; color:{$m}; font-weight:400; font-size:10px; }
+.sohe-step-current { color:{$r}; }
+.sohe-now { font-weight:500; }
+.sohe-step-when { font-family:{$f}; font-size:12px; color:{$m}; }
+#body_content .sohe-details th, #body_content .sohe-details td { padding:10px 0 0; }
 .sohe-details { width:100%; margin-top:18px; border-top:1px solid {$l}; }
 .sohe-details th, .sohe-details td { padding:10px 0 0; font-family:{$f}; font-size:14px; text-align:left; vertical-align:top; }
 .sohe-details th { width:42%; color:{$m}; font-weight:500; }
@@ -209,9 +213,7 @@ tfoot tr:last-child td.td .amount { color:{$r}; }
     .sohe-hero { padding:26px 22px 4px !important; }
     .sohe-body-cell { padding:10px 22px 28px !important; }
     h1 { font-size:22px !important; }
-    .sohe-track-inner { padding:16px !important; }
-    .sohe-step { font-size:9px !important; }
-    .sohe-step-date { display:none !important; }
+    #body_content td.sohe-track-inner { padding:16px !important; }
 }
 ";
 }
@@ -273,28 +275,34 @@ function sohe_tracking_html( $order ) {
             </table>
             <p class="sohe-track-msg<?php echo $step < 0 ? ' is-stopped' : ''; ?>"><?php echo esc_html( $message ); ?></p>
 
-            <?php if ( $step >= 0 && $count > 1 ) :
-                $pct = $step === $last ? 100 : (int) round( ( $step + 0.5 ) / $count * 100 ); // ends at the current step's dot ?>
-                <?php $bar = 'height:6px;line-height:6px;font-size:6px;mso-line-height-rule:exactly;padding:0;'; ?>
-                <table role="presentation" class="sohe-bar" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="<?php echo esc_attr( sohe_c( 'border' ) ); ?>" style="width:100%;border-radius:3px;background-color:<?php echo esc_attr( sohe_c( 'border' ) ); ?>;">
-                    <tr>
-                        <?php if ( $pct > 0 ) : ?><td width="<?php echo $pct; ?>%" height="6" bgcolor="<?php echo esc_attr( sohe_c( 'green' ) ); ?>" style="<?php echo $bar; ?>width:<?php echo $pct; ?>%;background-color:<?php echo esc_attr( sohe_c( 'green' ) ); ?>;border-radius:3px;">&nbsp;</td><?php endif; ?>
-                        <?php if ( $pct < 100 ) : ?><td height="6" style="<?php echo $bar; ?>">&nbsp;</td><?php endif; ?>
-                    </tr>
-                </table>
-                <table role="presentation" class="sohe-steps" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                        <?php foreach ( $steps as $i => $label ) :
-                            $state = ( $i < $step || $step === $last ) ? 'done' : ( $i === $step ? 'current' : 'todo' ); ?>
-                            <td class="sohe-step sohe-step-<?php echo esc_attr( $state ); ?>" width="<?php echo (int) floor( 100 / $count ); ?>%">
-                                <span class="sohe-dot sohe-dot-<?php echo esc_attr( $state ); ?>"><?php echo 'done' === $state ? '&#10003;' : (int) ( $i + 1 ); ?></span><br>
-                                <?php echo esc_html( $label ); ?>
-                                <?php if ( $i <= $step && ! empty( $dates[ $i ] ) ) : ?>
-                                    <span class="sohe-step-date"><?php echo esc_html( date_i18n( 'j M', $dates[ $i ] ) ); ?></span>
-                                <?php endif; ?>
+            <?php if ( $step >= 0 && $count > 1 ) : ?>
+                <table role="presentation" class="sohe-steps" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <?php foreach ( $steps as $i => $label ) :
+                        $state = ( $i < $step || $step === $last ) ? 'done' : ( $i === $step ? 'current' : 'todo' );
+                        $dot   = 'done' === $state ? sohe_c( 'green' ) : ( 'current' === $state ? sohe_c( 'red' ) : '#ffffff' );
+                        $ring  = 'todo' === $state ? sohe_c( 'border' ) : $dot;
+                        $ink   = 'todo' === $state ? sohe_c( 'muted' ) : '#ffffff';
+                        ?>
+                        <tr>
+                            <td class="sohe-step-dot" width="26" valign="middle" style="width:26px;padding:0;vertical-align:middle;">
+                                <div style="width:22px;height:22px;line-height:22px;border-radius:50%;border:2px solid <?php echo esc_attr( $ring ); ?>;background-color:<?php echo esc_attr( $dot ); ?>;color:<?php echo esc_attr( $ink ); ?>;font-size:11px;font-weight:700;text-align:center;"><?php echo 'done' === $state ? '&#10003;' : (int) ( $i + 1 ); ?></div>
                             </td>
-                        <?php endforeach; ?>
-                    </tr>
+                            <td class="sohe-step-label sohe-step-<?php echo esc_attr( $state ); ?>" valign="middle" style="padding:0 0 0 12px;vertical-align:middle;">
+                                <?php echo esc_html( $label ); ?><?php echo 'current' === $state ? ' <span class="sohe-now">· Now</span>' : ''; ?>
+                            </td>
+                            <td class="sohe-step-when" align="right" valign="middle" style="padding:0;vertical-align:middle;text-align:right;white-space:nowrap;">
+                                <?php echo ( $i <= $step && ! empty( $dates[ $i ] ) ) ? esc_html( date_i18n( 'j M', $dates[ $i ] ) ) : ''; ?>
+                            </td>
+                        </tr>
+                        <?php if ( $i < $last ) : ?>
+                            <tr>
+                                <td width="26" style="width:26px;padding:0;">
+                                    <div style="width:2px;height:14px;line-height:14px;font-size:1px;margin:0 auto;background-color:<?php echo esc_attr( $i < $step || $step === $last ? sohe_c( 'green' ) : sohe_c( 'border' ) ); ?>;">&nbsp;</div>
+                                </td>
+                                <td colspan="2" style="padding:0;font-size:1px;line-height:1px;">&nbsp;</td>
+                            </tr>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </table>
             <?php endif; ?>
 
