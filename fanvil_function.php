@@ -1550,7 +1550,7 @@ CSS;
  * - Order edit screen → "Shipping & tracking" box: courier, tracking number,
  *   estimated delivery date and latest update
  * - My Account → "Track order" tab: pick one of your orders and see its progress
- * - [soharon_track_order] shortcode: enter an order number to see its progress.
+ * - [soharon_track_order] shortcode: enter an order number to see its delivery status.
  *   Link format (fills the field): <tracking page>?order_number=1234
  * Steps: Order Confirmed → Processing → Ready for Dispatch → Shipped → Out for Delivery → Delivered
  * ============================================
@@ -1976,7 +1976,7 @@ function soharon_track_meta_box( $post_or_order ) {
         <p>
             <label for="soharon-link"><strong>Customer tracking link</strong></label>
             <input type="text" id="soharon-link" readonly value="<?php echo esc_attr( $link ); ?>" onclick="this.select()" style="<?php echo $field; ?>">
-            <span class="description">Opens this order's tracking without asking for an email.</span>
+            <span class="description">Opens this order's tracking with full details (items and address).</span>
         </p>
     <?php endif; ?>
     <p class="description">Shown on the tracking page and in My Account → Track order.
@@ -2138,8 +2138,13 @@ function soharon_track_hidden_query_fields( $url ) {
 
 /* ============================================
  * FRONT END: [soharon_track_order]
+ * Only the order number is asked for.
  * ?order_number=1234            → fills in the order number
- * ?order_number=1234&key=wc_…   → shows the order straight away (link from the order screen)
+ * ?order_number=1234&key=wc_…   → shows the full order straight away (link from the order screen)
+ * Privacy: with the order number alone, visitors see the delivery status only
+ * (tracker, courier, tracking number, estimated delivery, latest update).
+ * Items, prices, addresses and notes are shown only to the customer who owns
+ * the order (signed in) or when the link contains the order key.
  * ============================================ */
 add_shortcode( 'soharon_track_order', 'soharon_track_order_shortcode' );
 function soharon_track_order_shortcode( $atts ) {
@@ -2148,7 +2153,7 @@ function soharon_track_order_shortcode( $atts ) {
 
     soharon_enqueue_poppins();
 
-    // phpcs:disable WordPress.Security.NonceVerification -- read-only lookup, protected by email/key check + rate limit
+    // phpcs:disable WordPress.Security.NonceVerification -- read-only lookup, limited details + rate limit
     $posted = isset( $_POST['soharon_track_submit'] );
     $number = '';
     if ( isset( $_POST['soharon_track_number'] ) ) {
@@ -2156,41 +2161,37 @@ function soharon_track_order_shortcode( $atts ) {
     } elseif ( isset( $_GET['order_number'] ) ) {
         $number = wc_clean( wp_unslash( $_GET['order_number'] ) );
     }
-    $email = isset( $_POST['soharon_track_email'] ) ? sanitize_email( wp_unslash( $_POST['soharon_track_email'] ) ) : '';
-    $key   = ! $posted && isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
+    $key = ! $posted && isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
     // phpcs:enable
 
-    $logged_in = is_user_logged_in();
-    $order     = false;
-    $error     = '';
+    $order = false;
+    $error = '';
+    $full  = false;
     if ( $posted ) {
-        list( $order, $error ) = soharon_track_lookup( $number, $email );
-    } elseif ( '' !== $number && ( $key || $logged_in ) ) {
-        // Opened from a link: show it straight away when the link has the order key, or it's the customer's own order
-        list( $order, $error ) = soharon_track_lookup( $number, '', $key );
-        if ( ! $key && ! $order ) $error = ''; // just pre-fill, no error on first view
+        list( $order, $error, $full ) = soharon_track_lookup( $number );
+    } elseif ( '' !== $number && ( $key || is_user_logged_in() ) ) {
+        // Opened from a link with the order key, or by the signed-in owner: show it straight away
+        list( $order, $error, $full ) = soharon_track_lookup( $number, $key );
+        if ( ! $full ) {
+            $order = false; // otherwise just pre-fill the field
+            if ( ! $key ) $error = '';
+        }
     }
 
     ob_start();
     echo '<div class="soharon-track soharon-track--public">';
     soharon_track_print_css();
     ?>
-    <form class="soharon-track-lookup<?php echo $logged_in ? ' is-member' : ''; ?>" method="post" action="<?php echo esc_url( remove_query_arg( 'key' ) ); ?>#soharon-track-result">
+    <form class="soharon-track-lookup" method="post" action="<?php echo esc_url( remove_query_arg( 'key' ) ); ?>#soharon-track-result">
         <?php if ( '' !== trim( $atts['title'] ) ) : ?>
             <h2 class="soharon-track-lookup__title"><?php echo esc_html( $atts['title'] ); ?></h2>
         <?php endif; ?>
-        <p class="soharon-track-lookup__sub">Enter your order number<?php echo $logged_in ? '' : ' and the email address used at checkout'; ?> to see its status.</p>
+        <p class="soharon-track-lookup__sub">Enter your order number to see its status.</p>
         <div class="soharon-track-lookup__fields">
             <p>
                 <label for="soharon-track-number">Order number <span class="soharon-track-req" aria-hidden="true">*</span></label>
                 <input type="text" id="soharon-track-number" name="soharon_track_number" value="<?php echo esc_attr( $number ); ?>" placeholder="e.g. 1234" inputmode="numeric" autocomplete="off" required>
             </p>
-            <?php if ( ! $logged_in ) : ?>
-                <p>
-                    <label for="soharon-track-email">Billing email <span class="soharon-track-req" aria-hidden="true">*</span></label>
-                    <input type="email" id="soharon-track-email" name="soharon_track_email" value="<?php echo esc_attr( $email ); ?>" placeholder="you@example.com" autocomplete="email" required>
-                </p>
-            <?php endif; ?>
         </div>
         <button type="submit" name="soharon_track_submit" value="1" class="soharon-track-btn">Track order</button>
     </form>
@@ -2199,8 +2200,8 @@ function soharon_track_order_shortcode( $atts ) {
         if ( $error ) {
             echo '<div class="soharon-track-alert">' . esc_html( $error ) . '</div>';
         } elseif ( $order ) {
-            $own = $logged_in && (int) $order->get_customer_id() === get_current_user_id();
-            soharon_render_order_tracking( $order, $own );
+            $own = is_user_logged_in() && (int) $order->get_customer_id() === get_current_user_id();
+            soharon_render_order_tracking( $order, $own, $full );
         }
         ?>
     </div>
@@ -2210,46 +2211,42 @@ function soharon_track_order_shortcode( $atts ) {
 }
 
 /**
- * Find an order for the shortcode.
- * The order number alone is not enough (it would expose other customers' orders):
- * the billing email or order key must match, or the order must belong to the signed-in customer.
- * Failed attempts are limited per visitor to stop guessing.
+ * Find an order for the shortcode by its number.
+ * Returns array( order|false, error message, full details allowed ).
+ * Full details only for the signed-in owner or a matching order key.
+ * Lookups are limited per visitor (10 wrong numbers or 30 lookups per 15 minutes)
+ * so order numbers can't be scanned in bulk.
  */
-function soharon_track_lookup( $number, $email, $key = '' ) {
-    $not_found = 'We couldn\'t find an order with those details. Please check the order number' . ( is_user_logged_in() ? '.' : ' and email address.' );
-    $number    = ltrim( trim( (string) $number ), '#' );
-
+function soharon_track_lookup( $number, $key = '' ) {
+    $number = ltrim( trim( (string) $number ), '#' );
     if ( '' === $number ) {
-        return array( false, 'Please enter your order number.' );
-    }
-    if ( ! is_user_logged_in() && ! $email && ! $key ) {
-        return array( false, 'Please enter the email address used for the order.' );
+        return array( false, 'Please enter your order number.', false );
     }
 
     $ip       = class_exists( 'WC_Geolocation' ) ? WC_Geolocation::get_ip_address() : ( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '' );
     $rate_key = 'soharon_track_' . md5( $ip );
-    $fails    = (int) get_transient( $rate_key );
-    if ( $fails >= 10 ) {
-        return array( false, 'Too many attempts. Please wait 15 minutes and try again, or contact us for help.' );
+    $rate     = get_transient( $rate_key );
+    $rate     = is_array( $rate ) ? $rate : array( 'fails' => 0, 'total' => 0 );
+    if ( $rate['fails'] >= 10 || $rate['total'] >= 30 ) {
+        return array( false, 'Too many attempts. Please wait 15 minutes and try again, or contact us for help.', false );
     }
 
     // Same filter WooCommerce's own tracking form uses, so sequential order number plugins keep working
     $order_id = apply_filters( 'woocommerce_shortcode_order_tracking_order_id', $number );
     $order    = ctype_digit( (string) $order_id ) ? wc_get_order( absint( $order_id ) ) : false;
+    $found    = $order && 'shop_order' === $order->get_type() && ! $order->has_status( 'checkout-draft' );
 
-    $ok = false;
-    if ( $order && 'shop_order' === $order->get_type() && ! $order->has_status( 'checkout-draft' ) ) {
-        $own_order   = is_user_logged_in() && (int) $order->get_customer_id() === get_current_user_id();
-        $email_match = $email && strtolower( $order->get_billing_email() ) === strtolower( $email );
-        $key_match   = $key && hash_equals( $order->get_order_key(), $key );
-        $ok          = $own_order || $email_match || $key_match;
+    $rate['total']++;
+    if ( ! $found ) $rate['fails']++;
+    set_transient( $rate_key, $rate, 15 * MINUTE_IN_SECONDS );
+
+    if ( ! $found ) {
+        return array( false, 'We couldn\'t find an order with that number. Please check it and try again.', false );
     }
 
-    if ( ! $ok ) {
-        set_transient( $rate_key, $fails + 1, 15 * MINUTE_IN_SECONDS );
-        return array( false, $not_found );
-    }
-    return array( $order, '' );
+    $own_order = is_user_logged_in() && (int) $order->get_customer_id() === get_current_user_id();
+    $key_match = $key && hash_equals( $order->get_order_key(), $key );
+    return array( $order, '', $own_order || $key_match );
 }
 
 /* Status → tracker step (-1 = not on the tracker) + friendly message */
@@ -2308,8 +2305,9 @@ function soharon_track_step_dates( $order ) {
     return $dates;
 }
 
-/* The tracking card (used by the account tab and the shortcode) */
-function soharon_render_order_tracking( $order, $is_owner = false ) {
+/* The tracking card (used by the account tab and the shortcode).
+   $full = false → delivery status only (no items, prices, addresses or notes). */
+function soharon_render_order_tracking( $order, $is_owner = false, $full = true ) {
     list( $step, $message ) = soharon_track_status_info( $order );
     $steps    = soharon_track_steps();
     $last     = count( $steps ) - 1;
@@ -2317,7 +2315,7 @@ function soharon_render_order_tracking( $order, $is_owner = false ) {
     $status   = $order->get_status();
     $created  = $order->get_date_created();
     $delivery = soharon_track_delivery( $order );
-    $notes    = $order->get_customer_order_notes();
+    $notes    = $full ? $order->get_customer_order_notes() : array();
     $check    = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     $has_delivery = $delivery['courier'] || $delivery['number'] || $delivery['eta'] || $delivery['update'];
     ?>
@@ -2372,6 +2370,10 @@ function soharon_render_order_tracking( $order, $is_owner = false ) {
             </div>
         <?php endif; ?>
 
+        <?php if ( ! $full ) : ?>
+            <p class="soharon-track-private">For your privacy, order items and addresses are only shown after you
+                <a href="<?php echo esc_url( soharon_track_tab_url( $order->get_id() ) ); ?>">sign in</a>.</p>
+        <?php else : ?>
         <dl class="soharon-track-meta">
             <div><dt>Total</dt><dd><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></dd></div>
             <div><dt>Items</dt><dd><?php echo (int) $order->get_item_count(); ?></dd></div>
@@ -2432,6 +2434,8 @@ function soharon_render_order_tracking( $order, $is_owner = false ) {
             </div>
         <?php endif; ?>
 
+        <?php endif; // $full ?>
+
         <?php if ( $is_owner ) : ?>
             <div class="soharon-track-actions">
                 <a class="soharon-track-btn soharon-track-btn--ghost" href="<?php echo esc_url( $order->get_view_order_url() ); ?>">View full order</a>
@@ -2485,8 +2489,7 @@ function soharon_track_print_css() {
 .soharon-track-lookup{ max-width:640px; margin:0 auto 24px; padding:28px; background:#fff; border:1px solid var(--t-border); border-radius:24px; }
 .soharon-track-lookup__title{ margin:0 0 6px !important; font-size:22px; font-weight:600; }
 .soharon-track-lookup__sub{ margin:0 0 20px; color:var(--t-muted); }
-.soharon-track-lookup__fields{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px; }
-.soharon-track-lookup.is-member .soharon-track-lookup__fields{ grid-template-columns:1fr; }
+.soharon-track-lookup__fields{ display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:18px; }
 .soharon-track-lookup__fields p{ margin:0; }
 .soharon-track--public .soharon-track-card,.soharon-track--public .soharon-track-alert{ max-width:880px; margin-left:auto; margin-right:auto; }
 .soharon-track-alert{ margin:0 0 20px; padding:14px 18px; border-left:4px solid var(--t-red); border-radius:14px; background:var(--t-red-soft); }
@@ -2568,6 +2571,7 @@ function soharon_track_print_css() {
 .soharon-track-updates p{ margin:2px 0 0; }
 .soharon-track address{ margin:0; padding:0; border:0; font-style:normal; line-height:1.7; color:#555; }
 .soharon-track-actions{ margin-top:22px; }
+.soharon-track-private{ margin:20px 0 0; padding:12px 16px; border-radius:14px; background:var(--t-bg); color:#555; font-size:13px; }
 
 @media (max-width:700px){
     .soharon-track-steps{ grid-template-columns:1fr; gap:0; }
