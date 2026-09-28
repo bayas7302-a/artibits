@@ -40,6 +40,11 @@ class EST_Frontend {
 		add_filter( 'document_title_parts', array( __CLASS__, 'title_parts' ), 20 );
 		add_filter( 'wp_nav_menu_objects', array( __CLASS__, 'menu_items' ), 20 );
 
+		// Contact Form 7: form fields (also inside popups) and the messages
+		// returned after submitting (a REST request made from the translated page).
+		add_filter( 'wpcf7_form_elements', array( __CLASS__, 'cf7_form' ), 20 );
+		add_filter( 'wpcf7_display_message', array( __CLASS__, 'translate' ), 20 );
+
 		add_action( 'template_redirect', array( __CLASS__, 'start_buffer' ), 0 );
 	}
 
@@ -98,6 +103,23 @@ class EST_Frontend {
 
 	public static function post_content( $content ) {
 		return self::dict() ? EST_Html::translate_blocks( $content, array( __CLASS__, 'lookup' ) ) : $content;
+	}
+
+	public static function cf7_form( $html ) {
+		if ( ! self::dict() ) {
+			return $html;
+		}
+		$html = EST_Html::process( $html, array( __CLASS__, 'lookup' ) );
+		// Submit / button labels live in the value attribute.
+		$out = preg_replace_callback(
+			'/(<input\b[^>]*type=["\'](?:submit|button)["\'][^>]*\svalue=)(["\'])([^"\']*)\2/i',
+			function ( $m ) {
+				$t = self::lookup( html_entity_decode( $m[3], ENT_QUOTES, 'UTF-8' ) );
+				return null === $t ? $m[0] : $m[1] . $m[2] . esc_attr( $t ) . $m[2];
+			},
+			$html
+		);
+		return null === $out ? $html : $out;
 	}
 
 	public static function disable_element_cache() {

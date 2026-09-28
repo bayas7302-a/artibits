@@ -31,7 +31,9 @@ class EST_Router {
 		}
 
 		// AJAX calls made from a translated page: take the language from the referer.
-		if ( wp_doing_ajax() ) {
+		$uri_path = (string) wp_parse_url( self::$request, PHP_URL_PATH );
+		$is_rest  = false !== strpos( $uri_path, '/wp-json/' ) || isset( $_GET['rest_route'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		if ( wp_doing_ajax() || ( $is_rest && ! self::code_from_path( $uri_path ) ) ) {
 			if ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
 				$code = self::code_from_path( (string) wp_parse_url( wp_unslash( $_SERVER['HTTP_REFERER'] ), PHP_URL_PATH ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 				if ( $code ) {
