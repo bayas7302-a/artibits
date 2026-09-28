@@ -1984,7 +1984,8 @@ function soharon_track_meta_box( $post_or_order ) {
     <?php
 }
 
-/* Saved together with the order (WooCommerce checks its own nonce before this runs) */
+/* Saved together with the order (WooCommerce checks its own nonce before this runs).
+   Priority 5: before WooCommerce saves the status (40), so status emails already include the tracking details. */
 add_action( 'woocommerce_process_shop_order_meta', function ( $order_id ) {
     if ( ! isset( $_POST['soharon_tracking_number'] ) ) return; // phpcs:ignore
     $order = wc_get_order( $order_id );
@@ -2003,7 +2004,7 @@ add_action( 'woocommerce_process_shop_order_meta', function ( $order_id ) {
         $order->update_meta_data( '_soharon_latest_update_time', $update ? time() : 0 );
     }
     $order->save();
-}, 50 );
+}, 5 );
 
 /* ============================================
  * FRONT END: My Account → Track order
