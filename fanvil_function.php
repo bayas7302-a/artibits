@@ -13,7 +13,7 @@ if ( !function_exists( 'chld_thm_cfg_locale_css' ) ):
     }
 endif;
 add_filter( 'locale_stylesheet_uri', 'chld_thm_cfg_locale_css' );
-         
+
 if ( !function_exists( 'child_theme_configurator_css' ) ):
     function child_theme_configurator_css() {
         wp_enqueue_style( 'chld_thm_cfg_child', trailingslashit( get_stylesheet_directory_uri() ) . 'style.css', array( 'hello-elementor','hello-elementor-theme-style','hello-elementor-header-footer' ) );
@@ -27,7 +27,6 @@ add_action( 'wp_enqueue_scripts', 'child_theme_configurator_css', 10 );
 add_filter( 'woocommerce_currency_symbol', function ( $symbol, $currency ) {
 	return 'AED' === $currency ? 'AED' : $symbol;
 }, 10, 2 );
-
 
 
 /**
@@ -61,7 +60,15 @@ function soharon_icon( $name ) {
     return '<svg class="soharon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $paths[ $name ] . '</svg>';
 }
 
-
+/* Poppins font (cart, checkout, account and order tracking) */
+function soharon_enqueue_poppins() {
+    wp_enqueue_style(
+        'soharon-poppins-font',
+        'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap',
+        array(),
+        null
+    );
+}
 
 
 /**
@@ -78,12 +85,7 @@ add_action( 'wp_enqueue_scripts', 'soharon_cart_assets' );
 function soharon_cart_assets() {
     if ( ! is_cart() ) return;
 
-    wp_enqueue_style(
-        'soharon-poppins-font',
-        'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap',
-        array(),
-        null
-    );
+    soharon_enqueue_poppins();
 
     wp_register_style( 'soharon-custom-cart-css', false );
     wp_enqueue_style( 'soharon-custom-cart-css' );
@@ -479,8 +481,6 @@ JS;
 }
 
 
-
-
 /**
  * ============================================
  * SHARED HELPERS FOR CHECKOUT + MY ACCOUNT
@@ -520,12 +520,7 @@ function soharon_checkout_account_assets() {
     $is_account  = is_account_page();
     if ( ! $is_checkout && ! $is_account ) return;
 
-    wp_enqueue_style(
-        'soharon-poppins-font',
-        'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap',
-        array(),
-        null
-    );
+    soharon_enqueue_poppins();
 
     $css = '';
     if ( $is_checkout ) {
@@ -700,8 +695,6 @@ body .select2-search--dropdown .select2-search__field{ border-radius:10px; borde
 CSS;
     return soharon_brand_vars( $css, array( '{X}' => $scope ) );
 }
-
-
 
 
 /**
@@ -1068,8 +1061,6 @@ CSS;
 }
 
 
-
-
 /**
  * ============================================
  * SOHARON MY ACCOUNT — [soharon_my_account]
@@ -1245,7 +1236,8 @@ function soharon_block_downloads_endpoint() {
 add_action( 'woocommerce_account_dashboard', 'soharon_account_dashboard_cards' );
 function soharon_account_dashboard_cards() {
     $cards = array(
-        'orders'       => array( 'Orders', 'Track and view your orders' ),
+        'orders'       => array( 'Orders', 'View your order history' ),
+        SOHARON_TRACK_ENDPOINT => array( 'Track order', 'See the status of an order' ),
         'edit-address' => array( 'Addresses', 'Update billing and shipping' ),
         'edit-account' => array( 'Account details', 'Change name, email or password' ),
     );
@@ -1348,7 +1340,6 @@ function soharon_account_css() {
 {A} .soharon-dash-card span{ font-size:13px; color:var(--s-muted); }
 
 /* Orders table */
-{A} table.my_account_orders .button{ padding:8px 18px; font-size:13px; margin:2px 4px 2px 0; }
 {A} .woocommerce-pagination{ display:flex; gap:10px; margin-top:12px; }
 
 /* Addresses */
@@ -1425,11 +1416,6 @@ function soharon_account_css() {
 {A} table.order_details tfoot th{ font-weight:500; color:var(--s-muted); }
 {A} table.order_details tfoot td{ font-weight:600; color:var(--s-text); }
 
-/* Billing address as a soft card */
-{A} .woocommerce-customer-details > address{
-    padding:20px 22px; border:1px solid var(--s-border); border-radius:18px; background:var(--s-bg);
-}
-{A} .woocommerce-customer-details address p{ margin:6px 0 0; }
 /* Orders list: clean bordered table */
 {A} table.my_account_orders{
     width:100%; margin:0; background:#fff;
@@ -1529,8 +1515,8 @@ function soharon_account_css() {
 @media (max-width:600px){
     {A} .soharon-auth-card,{A} .woocommerce-MyAccount-content{ padding:22px; border-radius:20px; }
     {A} .woocommerce-Addresses,{A} .woocommerce-customer-details .col2-set{ grid-template-columns:1fr; }
-	    {A} table.order_details th,{A} table.order_details td{ padding:12px 14px !important; font-size:13px; }
-		    {A} .woocommerce-customer-details address{ max-width:none; padding:18px !important; }
+    {A} table.order_details th,{A} table.order_details td{ padding:12px 14px !important; font-size:13px; }
+    {A} .woocommerce-customer-details address{ max-width:none; padding:18px !important; }
 }
 
 /* Orders list on phones: each order becomes a card */
@@ -1557,15 +1543,557 @@ CSS;
 }
 
 /**
+ * ============================================
+ * SOHARON ORDER TRACKING
+ * - My Account → "Track order" tab: pick one of your orders and see its status
+ * - [soharon_track_order] shortcode: enter an order number (+ billing email)
+ *   to see the order details and status. Works on any page.
+ * Adds nothing to the database except one option that remembers the
+ * tab URL has been registered (so permalinks don't need re-saving).
+ * ============================================
+ */
+define( 'SOHARON_TRACK_ENDPOINT', 'track-order' );
+
+/* Register /my-account/track-order/ as a WooCommerce account endpoint */
+add_filter( 'woocommerce_get_query_vars', function ( $vars ) {
+    $vars[ SOHARON_TRACK_ENDPOINT ] = SOHARON_TRACK_ENDPOINT;
+    return $vars;
+} );
+add_action( 'init', function () {
+    if ( get_option( 'soharon_track_endpoint' ) !== SOHARON_TRACK_ENDPOINT ) {
+        flush_rewrite_rules( false ); // one time only, same as re-saving Settings → Permalinks
+        update_option( 'soharon_track_endpoint', SOHARON_TRACK_ENDPOINT );
+    }
+}, 99 );
+
+/* Menu tab, placed right after "Orders" */
+add_filter( 'woocommerce_account_menu_items', 'soharon_track_menu_item', 100 );
+function soharon_track_menu_item( $items ) {
+    $out = array();
+    foreach ( $items as $key => $label ) {
+        if ( 'customer-logout' === $key && ! isset( $out[ SOHARON_TRACK_ENDPOINT ] ) ) {
+            $out[ SOHARON_TRACK_ENDPOINT ] = 'Track order';
+        }
+        $out[ $key ] = $label;
+        if ( 'orders' === $key ) {
+            $out[ SOHARON_TRACK_ENDPOINT ] = 'Track order';
+        }
+    }
+    if ( ! isset( $out[ SOHARON_TRACK_ENDPOINT ] ) ) {
+        $out[ SOHARON_TRACK_ENDPOINT ] = 'Track order';
+    }
+    return $out;
+}
+add_filter( 'woocommerce_endpoint_' . SOHARON_TRACK_ENDPOINT . '_title', function () {
+    return 'Track order';
+} );
+
+/* "Track" button next to "View" in the Orders list */
+add_filter( 'woocommerce_my_account_my_orders_actions', function ( $actions, $order ) {
+    $actions['track'] = array(
+        'url'  => soharon_track_tab_url( $order->get_id() ),
+        'name' => 'Track',
+    );
+    return $actions;
+}, 10, 2 );
+
+function soharon_track_tab_url( $order_id = 0 ) {
+    $url = wc_get_account_endpoint_url( SOHARON_TRACK_ENDPOINT );
+    return $order_id ? add_query_arg( 'order_id', absint( $order_id ), $url ) : $url;
+}
+
+/* ----- My Account tab ----- */
+add_action( 'woocommerce_account_' . SOHARON_TRACK_ENDPOINT . '_endpoint', 'soharon_account_track_order_tab' );
+function soharon_account_track_order_tab() {
+    $user_id = get_current_user_id();
+    $orders  = wc_get_orders( array(
+        'customer' => $user_id,
+        'limit'    => 50,
+        'orderby'  => 'date',
+        'order'    => 'DESC',
+        'type'     => 'shop_order',
+        'status'   => array_diff( array_keys( wc_get_order_statuses() ), array( 'wc-checkout-draft' ) ),
+    ) );
+
+    echo '<div class="soharon-track">';
+    soharon_track_print_css();
+
+    if ( ! $orders ) {
+        echo '<div class="soharon-track-empty"><p>You have no orders to track yet.</p>';
+        echo '<a class="soharon-track-btn" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">Browse products</a></div></div>';
+        return;
+    }
+
+    // Selected order: ?order_id=… (only if it belongs to this customer), otherwise the newest one
+    $selected = $orders[0];
+    $wanted   = isset( $_GET['order_id'] ) ? absint( $_GET['order_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+    if ( $wanted ) {
+        foreach ( $orders as $o ) {
+            if ( $o->get_id() === $wanted ) {
+                $selected = $o;
+                break;
+            }
+        }
+        if ( $selected->get_id() !== $wanted ) {
+            $o = wc_get_order( $wanted );
+            if ( $o && (int) $o->get_customer_id() === $user_id ) {
+                $selected = $o; // older than the 50 listed
+                array_unshift( $orders, $o );
+            }
+        }
+    }
+
+    $action = soharon_track_tab_url();
+    ?>
+    <form class="soharon-track-form" method="get" action="<?php echo esc_url( $action ); ?>">
+        <?php soharon_track_hidden_query_fields( $action ); ?>
+        <label for="soharon-track-select">Select an order</label>
+        <div class="soharon-track-form__row">
+            <select id="soharon-track-select" name="order_id" onchange="this.form.submit()">
+                <?php foreach ( $orders as $o ) :
+                    $date = $o->get_date_created();
+                    printf(
+                        '<option value="%d"%s>#%s — %s — %s — %s</option>',
+                        $o->get_id(),
+                        selected( $o->get_id(), $selected->get_id(), false ),
+                        esc_html( $o->get_order_number() ),
+                        esc_html( $date ? wc_format_datetime( $date ) : '' ),
+                        esc_html( wc_get_order_status_name( $o->get_status() ) ),
+                        esc_html( wp_strip_all_tags( wc_price( $o->get_total(), array( 'currency' => $o->get_currency() ) ) ) )
+                    );
+                endforeach; ?>
+            </select>
+            <button type="submit" class="soharon-track-btn">Show</button>
+        </div>
+    </form>
+    <?php
+    soharon_render_order_tracking( $selected, true );
+    echo '</div>';
+}
+
+/* Keep ?page_id=… etc. when permalinks are "Plain" (a GET form drops the action's query string) */
+function soharon_track_hidden_query_fields( $url ) {
+    $query = wp_parse_url( $url, PHP_URL_QUERY );
+    if ( ! $query ) return;
+    parse_str( $query, $args );
+    foreach ( $args as $key => $value ) {
+        if ( 'order_id' === $key || is_array( $value ) ) continue;
+        printf( '<input type="hidden" name="%s" value="%s">', esc_attr( $key ), esc_attr( $value ) );
+    }
+}
+
+/* ----- Shortcode: [soharon_track_order] ----- */
+add_shortcode( 'soharon_track_order', 'soharon_track_order_shortcode' );
+function soharon_track_order_shortcode( $atts ) {
+    if ( ! function_exists( 'WC' ) ) return '';
+    $atts = shortcode_atts( array( 'title' => 'Track your order' ), $atts, 'soharon_track_order' );
+
+    soharon_enqueue_poppins();
+
+    // phpcs:disable WordPress.Security.NonceVerification -- read-only lookup, protected by email check + rate limit
+    $submitted = isset( $_POST['soharon_track_submit'] );
+    $number    = '';
+    if ( isset( $_POST['soharon_track_number'] ) ) {
+        $number = wc_clean( wp_unslash( $_POST['soharon_track_number'] ) );
+    } elseif ( isset( $_GET['order_number'] ) ) {
+        $number = wc_clean( wp_unslash( $_GET['order_number'] ) ); // pre-fill from links, no lookup
+    }
+    $email = isset( $_POST['soharon_track_email'] ) ? sanitize_email( wp_unslash( $_POST['soharon_track_email'] ) ) : '';
+    // phpcs:enable
+
+    $order = false;
+    $error = '';
+    if ( $submitted ) {
+        list( $order, $error ) = soharon_track_lookup( $number, $email );
+    }
+
+    $logged_in = is_user_logged_in();
+
+    ob_start();
+    echo '<div class="soharon-track soharon-track--public">';
+    soharon_track_print_css();
+    ?>
+    <form class="soharon-track-lookup" method="post" action="<?php echo esc_url( remove_query_arg( 'order_number' ) ); ?>#soharon-track-result">
+        <?php if ( '' !== trim( $atts['title'] ) ) : ?>
+            <h2 class="soharon-track-lookup__title"><?php echo esc_html( $atts['title'] ); ?></h2>
+        <?php endif; ?>
+        <p class="soharon-track-lookup__sub">Enter your order number<?php echo $logged_in ? '' : ' and the email address used at checkout'; ?> to see its status.</p>
+        <div class="soharon-track-lookup__fields">
+            <p>
+                <label for="soharon-track-number">Order number <span class="soharon-track-req" aria-hidden="true">*</span></label>
+                <input type="text" id="soharon-track-number" name="soharon_track_number" value="<?php echo esc_attr( $number ); ?>" placeholder="e.g. 1234" inputmode="numeric" autocomplete="off" required>
+            </p>
+            <p>
+                <label for="soharon-track-email">Billing email<?php echo $logged_in ? ' <span class="soharon-track-opt">(optional for your own orders)</span>' : ' <span class="soharon-track-req" aria-hidden="true">*</span>'; ?></label>
+                <input type="email" id="soharon-track-email" name="soharon_track_email" value="<?php echo esc_attr( $email ); ?>" placeholder="you@example.com" autocomplete="email"<?php echo $logged_in ? '' : ' required'; ?>>
+            </p>
+        </div>
+        <button type="submit" name="soharon_track_submit" value="1" class="soharon-track-btn">Track order</button>
+    </form>
+    <div id="soharon-track-result" aria-live="polite">
+        <?php
+        if ( $error ) {
+            echo '<div class="soharon-track-alert">' . esc_html( $error ) . '</div>';
+        } elseif ( $order ) {
+            $own = $logged_in && (int) $order->get_customer_id() === get_current_user_id();
+            soharon_render_order_tracking( $order, $own );
+        }
+        ?>
+    </div>
+    <?php
+    echo '</div>';
+    return ob_get_clean();
+}
+
+/**
+ * Find an order for the shortcode.
+ * The order number alone is not enough (it would expose other customers' orders):
+ * the billing email must match, or the order must belong to the signed-in customer.
+ * Failed attempts are limited per visitor to stop guessing.
+ */
+function soharon_track_lookup( $number, $email ) {
+    $not_found = 'We couldn\'t find an order with those details. Please check the order number and email address.';
+    $number    = ltrim( trim( (string) $number ), '#' );
+
+    if ( '' === $number ) {
+        return array( false, 'Please enter your order number.' );
+    }
+    if ( ! is_user_logged_in() && ! $email ) {
+        return array( false, 'Please enter the email address used for the order.' );
+    }
+
+    $ip       = class_exists( 'WC_Geolocation' ) ? WC_Geolocation::get_ip_address() : ( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '' );
+    $rate_key = 'soharon_track_' . md5( $ip );
+    $fails    = (int) get_transient( $rate_key );
+    if ( $fails >= 10 ) {
+        return array( false, 'Too many attempts. Please wait 15 minutes and try again, or contact us for help.' );
+    }
+
+    // Same filter WooCommerce's own tracking form uses, so sequential order number plugins keep working
+    $order_id = apply_filters( 'woocommerce_shortcode_order_tracking_order_id', $number );
+    $order    = ctype_digit( (string) $order_id ) ? wc_get_order( absint( $order_id ) ) : false;
+
+    $ok = false;
+    if ( $order && 'shop_order' === $order->get_type() && ! $order->has_status( 'checkout-draft' ) ) {
+        $own_order   = is_user_logged_in() && (int) $order->get_customer_id() === get_current_user_id();
+        $email_match = $email && strtolower( $order->get_billing_email() ) === strtolower( $email );
+        $ok          = $own_order || $email_match;
+    }
+
+    if ( ! $ok ) {
+        set_transient( $rate_key, $fails + 1, 15 * MINUTE_IN_SECONDS );
+        return array( false, $not_found );
+    }
+    return array( $order, '' );
+}
+
+/* Status → progress step (0 placed, 1 processing, 2 completed, -1 stopped) + friendly message */
+function soharon_track_status_info( $order ) {
+    $status = $order->get_status();
+    $map    = array(
+        'pending'    => array( 0, 'We\'re waiting for your payment.' ),
+        'on-hold'    => array( 0, 'Your order is on hold until we confirm your payment.' ),
+        'processing' => array( 1, 'We\'ve received your order and are preparing it.' ),
+        'completed'  => array( 2, 'Your order is complete.' ),
+        'cancelled'  => array( -1, 'This order was cancelled.' ),
+        'refunded'   => array( -1, 'This order has been refunded.' ),
+        'failed'     => array( -1, 'The payment for this order failed.' ),
+    );
+    $info = isset( $map[ $status ] )
+        ? $map[ $status ]
+        : array( 1, sprintf( 'Current status: %s.', wc_get_order_status_name( $status ) ) ); // custom statuses
+    return apply_filters( 'soharon_track_status_info', $info, $order );
+}
+
+/* Tracking numbers saved by WooCommerce Shipment Tracking / Advanced Shipment Tracking (if used) */
+function soharon_track_shipments( $order ) {
+    $list  = array();
+    $items = $order->get_meta( '_wc_shipment_tracking_items' );
+    if ( is_array( $items ) ) {
+        foreach ( $items as $item ) {
+            if ( empty( $item['tracking_number'] ) ) continue;
+            $provider = ! empty( $item['custom_tracking_provider'] ) ? $item['custom_tracking_provider']
+                : ( ! empty( $item['tracking_provider'] ) ? ucwords( str_replace( array( '-', '_' ), ' ', $item['tracking_provider'] ) ) : '' );
+            $list[] = array(
+                'provider' => $provider,
+                'number'   => $item['tracking_number'],
+                'link'     => ! empty( $item['custom_tracking_link'] ) ? $item['custom_tracking_link'] : '',
+                'date'     => ! empty( $item['date_shipped'] ) ? (int) $item['date_shipped'] : 0,
+            );
+        }
+    }
+    return apply_filters( 'soharon_track_shipments', $list, $order );
+}
+
+/* The tracking card (used by the account tab and the shortcode) */
+function soharon_render_order_tracking( $order, $is_owner = false ) {
+    list( $step, $message ) = soharon_track_status_info( $order );
+    $status    = $order->get_status();
+    $created   = $order->get_date_created();
+    $shipments = soharon_track_shipments( $order );
+    $notes     = $order->get_customer_order_notes();
+    $check     = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    $steps = array(
+        array( 'Order placed', $created ),
+        array( 'Processing', $order->get_date_paid() ),
+        array( 'Completed', $order->get_date_completed() ),
+    );
+    ?>
+    <div class="soharon-track-card">
+        <div class="soharon-track-head">
+            <div>
+                <h3>Order #<?php echo esc_html( $order->get_order_number() ); ?></h3>
+                <?php if ( $created ) : ?>
+                    <p>Placed on <?php echo esc_html( wc_format_datetime( $created ) ); ?></p>
+                <?php endif; ?>
+            </div>
+            <span class="soharon-status soharon-status--<?php echo esc_attr( $status ); ?>"><?php echo esc_html( wc_get_order_status_name( $status ) ); ?></span>
+        </div>
+
+        <p class="soharon-track-message<?php echo $step < 0 ? ' is-stopped' : ''; ?>"><?php echo esc_html( $message ); ?></p>
+
+        <?php if ( $step >= 0 ) : ?>
+            <ol class="soharon-track-steps" style="--soharon-progress:<?php echo (int) $step; ?>">
+                <?php foreach ( $steps as $i => $s ) :
+                    $state = $i < $step || 2 === $step ? 'is-done' : ( $i === $step ? 'is-current' : '' );
+                    ?>
+                    <li class="<?php echo esc_attr( $state ); ?>"<?php echo $i === $step ? ' aria-current="step"' : ''; ?>>
+                        <span class="soharon-track-dot"><?php echo 'is-done' === $state ? $check : (int) ( $i + 1 ); // phpcs:ignore ?></span>
+                        <strong><?php echo esc_html( $s[0] ); ?></strong>
+                        <?php if ( $s[1] && $i <= $step ) : ?>
+                            <small><?php echo esc_html( wc_format_datetime( $s[1] ) ); ?></small>
+                        <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ol>
+        <?php endif; ?>
+
+        <dl class="soharon-track-meta">
+            <div><dt>Total</dt><dd><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></dd></div>
+            <div><dt>Items</dt><dd><?php echo (int) $order->get_item_count(); ?></dd></div>
+            <?php if ( $order->get_payment_method_title() ) : ?>
+                <div><dt>Payment</dt><dd><?php echo esc_html( $order->get_payment_method_title() ); ?></dd></div>
+            <?php endif; ?>
+            <?php if ( $order->get_shipping_method() ) : ?>
+                <div><dt>Delivery</dt><dd><?php echo esc_html( $order->get_shipping_method() ); ?></dd></div>
+            <?php endif; ?>
+        </dl>
+
+        <?php if ( $shipments ) : ?>
+            <div class="soharon-track-section">
+                <h4>Shipment</h4>
+                <ul class="soharon-track-shipments">
+                    <?php foreach ( $shipments as $sh ) : ?>
+                        <li>
+                            <span><?php echo esc_html( $sh['provider'] ? $sh['provider'] : 'Tracking number' ); ?></span>
+                            <strong><?php echo esc_html( $sh['number'] ); ?></strong>
+                            <?php if ( $sh['date'] ) : ?><small>Shipped <?php echo esc_html( date_i18n( wc_date_format(), $sh['date'] ) ); ?></small><?php endif; ?>
+                            <?php if ( $sh['link'] ) : ?><a href="<?php echo esc_url( $sh['link'] ); ?>" target="_blank" rel="noopener">Track shipment</a><?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
+        <?php if ( $notes ) : ?>
+            <div class="soharon-track-section">
+                <h4>Order updates</h4>
+                <ul class="soharon-track-updates">
+                    <?php foreach ( $notes as $note ) : ?>
+                        <li>
+                            <small><?php echo esc_html( date_i18n( wc_date_format() . ' ' . wc_time_format(), strtotime( $note->comment_date ) ) ); ?></small>
+                            <div><?php echo wp_kses_post( wpautop( wptexturize( $note->comment_content ) ) ); ?></div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
+        <div class="soharon-track-section">
+            <h4>Items</h4>
+            <ul class="soharon-track-items">
+                <?php foreach ( $order->get_items() as $item ) :
+                    if ( ! apply_filters( 'woocommerce_order_item_visible', true, $item ) ) continue;
+                    $product = $item->get_product();
+                    $image   = $product ? $product->get_image( array( 56, 56 ) ) : wc_placeholder_img( array( 56, 56 ) );
+                    ?>
+                    <li>
+                        <span class="soharon-track-thumb"><?php echo $image; // phpcs:ignore ?></span>
+                        <span class="soharon-track-item-name"><?php echo esc_html( $item->get_name() ); ?> <em>&times; <?php echo (int) $item->get_quantity(); ?></em></span>
+                        <span class="soharon-track-item-total"><?php echo wp_kses_post( $order->get_formatted_line_subtotal( $item ) ); ?></span>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="soharon-track-totals">
+                <?php foreach ( $order->get_order_item_totals() as $key => $total ) :
+                    if ( 'payment_method' === $key ) continue; ?>
+                    <div class="<?php echo 'order_total' === $key ? 'is-grand' : ''; ?>">
+                        <span><?php echo wp_kses_post( rtrim( $total['label'], ':' ) ); ?></span>
+                        <span><?php echo wp_kses_post( $total['value'] ); ?></span>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <?php
+        $address = $order->has_shipping_address() ? $order->get_formatted_shipping_address() : $order->get_formatted_billing_address();
+        if ( $address ) : ?>
+            <div class="soharon-track-section">
+                <h4><?php echo $order->has_shipping_address() ? 'Delivery address' : 'Billing address'; ?></h4>
+                <address><?php echo wp_kses_post( $address ); ?></address>
+            </div>
+        <?php endif; ?>
+
+        <?php if ( $is_owner ) : ?>
+            <div class="soharon-track-actions">
+                <a class="soharon-track-btn soharon-track-btn--ghost" href="<?php echo esc_url( $order->get_view_order_url() ); ?>">View full order</a>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+/* Tracking styles: self-contained, so the shortcode looks right on any page */
+function soharon_track_print_css() {
+    static $done = false;
+    if ( $done ) return;
+    $done = true;
+    $css  = <<<'CSS'
+.soharon-track{
+    --t-red:{RED}; --t-red-dark:{RED_DARK}; --t-red-soft:#FDECEC; --t-green:#17804A; --t-green-soft:#E8F6EE;
+    --t-text:#1A1A1A; --t-muted:#8A8A8A; --t-border:#ECECEC; --t-bg:#F7F7F7;
+    font-family:'Poppins',sans-serif; color:var(--t-text); font-size:14px; line-height:1.6;
+}
+.soharon-track *,.soharon-track *::before,.soharon-track *::after{ box-sizing:border-box; }
+.soharon-track h2,.soharon-track h3,.soharon-track h4{ margin:0; color:var(--t-text); text-transform:none; line-height:1.3; }
+.soharon-track a{ color:var(--t-red); }
+
+/* Buttons */
+.soharon-track .soharon-track-btn,.soharon-track button.soharon-track-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px;
+    padding:12px 26px; margin:0; border:1px solid var(--t-red); border-radius:999px;
+    background:var(--t-red); color:#fff; font:600 14px/1.2 'Poppins',sans-serif;
+    text-decoration:none; text-transform:none; box-shadow:none; cursor:pointer; transition:background .2s, color .2s;
+}
+.soharon-track .soharon-track-btn:hover,.soharon-track .soharon-track-btn:focus-visible{ background:var(--t-red-dark); border-color:var(--t-red-dark); color:#fff; }
+.soharon-track .soharon-track-btn--ghost{ background:#fff; color:var(--t-red); }
+.soharon-track .soharon-track-btn--ghost:hover{ background:var(--t-red); color:#fff; }
+
+/* Fields */
+.soharon-track label{ display:block; margin:0 0 6px; font-size:13px; font-weight:500; color:#555; }
+.soharon-track select,.soharon-track input[type=text],.soharon-track input[type=email]{
+    width:100%; min-height:48px; padding:12px 16px; margin:0; border:1px solid #E3E3E3; border-radius:14px;
+    background:var(--t-bg); color:var(--t-text); font:400 14px/1.4 'Poppins',sans-serif; box-shadow:none;
+}
+.soharon-track select:focus,.soharon-track input:focus{ outline:none; border-color:var(--t-red); background:#fff; box-shadow:0 0 0 4px rgba(219,20,29,.10); }
+.soharon-track-req{ color:var(--t-red); }
+.soharon-track-opt{ color:var(--t-muted); font-weight:400; }
+
+/* Account tab: order picker */
+.soharon-track-form{ margin:0 0 22px; }
+.soharon-track-form__row{ display:flex; gap:10px; }
+.soharon-track-form__row select{ flex:1; min-width:0; }
+
+/* Shortcode: lookup form */
+.soharon-track-lookup{ max-width:640px; margin:0 auto 24px; padding:28px; background:#fff; border:1px solid var(--t-border); border-radius:24px; }
+.soharon-track-lookup__title{ margin:0 0 6px !important; font-size:22px; font-weight:600; }
+.soharon-track-lookup__sub{ margin:0 0 20px; color:var(--t-muted); }
+.soharon-track-lookup__fields{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px; }
+.soharon-track-lookup__fields p{ margin:0; }
+.soharon-track--public .soharon-track-card,.soharon-track--public .soharon-track-alert{ max-width:880px; margin-left:auto; margin-right:auto; }
+.soharon-track-alert{ margin:0 0 20px; padding:14px 18px; border-left:4px solid var(--t-red); border-radius:14px; background:var(--t-red-soft); }
+.soharon-track-empty{ padding:28px; text-align:center; border:1px dashed var(--t-border); border-radius:20px; }
+.soharon-track-empty p{ margin:0 0 14px; color:var(--t-muted); }
+
+/* Card */
+.soharon-track-card{ padding:24px; background:#fff; border:1px solid var(--t-border); border-radius:22px; }
+.soharon-track-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.soharon-track .soharon-track-head h3{ margin:0; font-size:19px; font-weight:600; }
+.soharon-track-head p{ margin:2px 0 0; color:var(--t-muted); font-size:13px; }
+.soharon-track-message{ margin:16px 0 0; padding:12px 16px; border-radius:14px; background:var(--t-bg); }
+.soharon-track-message.is-stopped{ background:var(--t-red-soft); color:var(--t-red-dark); font-weight:500; }
+
+/* Status pill */
+.soharon-track .soharon-status{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; white-space:nowrap;
+    font-size:12px; font-weight:600; line-height:1.4; background:#F1F2F4; color:#4B5563;
+}
+.soharon-track .soharon-status::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+.soharon-track .soharon-status--processing,.soharon-track .soharon-status--on-hold,.soharon-track .soharon-status--pending{ background:#FEF3E2; color:#B45309; }
+.soharon-track .soharon-status--completed{ background:var(--t-green-soft); color:var(--t-green); }
+.soharon-track .soharon-status--cancelled,.soharon-track .soharon-status--failed,.soharon-track .soharon-status--refunded{ background:var(--t-red-soft); color:var(--t-red); }
+
+/* Progress steps */
+.soharon-track-steps{
+    position:relative; display:grid; grid-template-columns:repeat(3,1fr); margin:26px 0 8px; padding:0; list-style:none; counter-reset:none;
+}
+.soharon-track-steps::before,.soharon-track-steps::after{
+    content:""; position:absolute; top:17px; left:16.66%; height:3px; border-radius:3px; background:var(--t-border);
+    width:66.66%;
+}
+.soharon-track-steps::after{ background:var(--t-green); width:calc(33.33% * var(--soharon-progress)); transition:width .4s; }
+.soharon-track-steps li{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:4px; margin:0; padding:0 6px; text-align:center; }
+.soharon-track-dot{
+    display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%;
+    border:3px solid var(--t-border); background:#fff; color:var(--t-muted); font-size:13px; font-weight:600;
+}
+.soharon-track-steps li.is-done .soharon-track-dot{ border-color:var(--t-green); background:var(--t-green); color:#fff; }
+.soharon-track-steps li.is-current .soharon-track-dot{ border-color:var(--t-red); color:var(--t-red); box-shadow:0 0 0 5px rgba(219,20,29,.12); }
+.soharon-track-steps strong{ font-size:13px; font-weight:600; }
+.soharon-track-steps li:not(.is-done):not(.is-current) strong{ color:var(--t-muted); font-weight:500; }
+.soharon-track-steps small{ font-size:12px; color:var(--t-muted); }
+
+/* Summary strip */
+.soharon-track-meta{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin:20px 0 0; }
+.soharon-track-meta div{ padding:12px 14px; border-radius:14px; background:var(--t-bg); }
+.soharon-track-meta dt{ font-size:12px; color:var(--t-muted); }
+.soharon-track-meta dd{ margin:2px 0 0; font-weight:600; }
+
+/* Sections */
+.soharon-track-section{ margin-top:22px; padding-top:20px; border-top:1px solid var(--t-border); }
+.soharon-track-section h4{ margin:0 0 12px; font-size:15px; font-weight:600; }
+.soharon-track ul.soharon-track-items,.soharon-track ul.soharon-track-updates,.soharon-track ul.soharon-track-shipments{ list-style:none; margin:0; padding:0; }
+.soharon-track-items li{ display:flex; align-items:center; gap:12px; margin:0; padding:10px 0; border-bottom:1px solid var(--t-border); }
+.soharon-track-thumb img{ display:block; width:56px; height:56px; object-fit:contain; border-radius:12px; background:var(--t-bg); }
+.soharon-track-item-name{ flex:1; min-width:0; font-weight:500; }
+.soharon-track-item-name em{ font-style:normal; color:var(--t-muted); font-weight:400; }
+.soharon-track-item-total{ font-weight:600; white-space:nowrap; }
+.soharon-track-totals div{ display:flex; justify-content:space-between; gap:12px; padding:6px 0; color:#555; }
+.soharon-track-totals div.is-grand{ padding-top:10px; font-size:16px; font-weight:700; color:var(--t-text); }
+.soharon-track-totals div.is-grand .woocommerce-Price-amount{ color:var(--t-red); }
+.soharon-track-updates li{ position:relative; margin:0; padding:0 0 14px 20px; border-left:2px solid var(--t-border); }
+.soharon-track-updates li::before{ content:""; position:absolute; top:5px; left:-6px; width:10px; height:10px; border-radius:50%; background:var(--t-red); }
+.soharon-track-updates li:last-child{ padding-bottom:0; }
+.soharon-track-updates small{ display:block; color:var(--t-muted); font-size:12px; }
+.soharon-track-updates p{ margin:2px 0 0; }
+.soharon-track-shipments li{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:0 0 8px; padding:12px 14px; border-radius:14px; background:var(--t-bg); }
+.soharon-track-shipments small{ color:var(--t-muted); }
+.soharon-track-shipments a{ margin-left:auto; font-weight:600; }
+.soharon-track address{ margin:0; padding:0; border:0; font-style:normal; line-height:1.7; color:#555; }
+.soharon-track-actions{ margin-top:22px; }
+
+@media (max-width:600px){
+    .soharon-track-card,.soharon-track-lookup{ padding:18px; border-radius:18px; }
+    .soharon-track-lookup__fields{ grid-template-columns:1fr; }
+    .soharon-track-form__row{ flex-direction:column; }
+    .soharon-track-head{ flex-direction:column; }
+    .soharon-track-steps strong{ font-size:12px; }
+    .soharon-track-steps small{ display:none; }
+}
+CSS;
+    echo '<style id="soharon-track-css">' . soharon_brand_vars( $css ) . '</style>'; // phpcs:ignore
+}
+
+
+/**
  * WooCommerce: "Product URL" + "Data Sheet" link fields
  * - Adds two URL fields in Product Data > General (admin)
  * - Saves them as product meta (_product_url_link, _product_datasheet_link)
  * - Shows them on the single product page directly below the Category line
  * - Shortcodes for Elementor: [product_url]  [product_datasheet]  [product_links]
- *
- * Add to your child theme's functions.php (or a Code Snippets plugin).
  */
- 
+
 /* Field definitions: meta key => label */
 function soh_product_link_fields() {
 	return array(
@@ -1573,7 +2101,7 @@ function soh_product_link_fields() {
 		'_product_datasheet_link' => __( 'Data Sheet', 'woocommerce' ),
 	);
 }
- 
+
 /* 1. Admin fields */
 add_action( 'woocommerce_product_options_general_product_data', function () {
 	echo '<div class="options_group">';
@@ -1589,7 +2117,7 @@ add_action( 'woocommerce_product_options_general_product_data', function () {
 	}
 	echo '</div>';
 } );
- 
+
 /* 2. Save fields */
 add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
 	foreach ( array_keys( soh_product_link_fields() ) as $key ) {
@@ -1598,7 +2126,7 @@ add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
 		}
 	}
 } );
- 
+
 /* 3. Build the output for one link */
 function soh_get_product_link_html( $key, $product = null ) {
 	$product = $product ?: wc_get_product( get_the_ID() );
@@ -1619,7 +2147,7 @@ function soh_get_product_link_html( $key, $product = null ) {
 		$is_datasheet ? esc_html__( 'Download', 'woocommerce' ) : esc_html( $url )
 	);
 }
- 
+
 /* Both links together */
 function soh_get_product_links_html( $product = null ) {
 	$html = '';
@@ -1628,13 +2156,13 @@ function soh_get_product_links_html( $product = null ) {
 	}
 	return $html;
 }
- 
+
 /* 4. Display below Category (inside the product meta block) */
 add_action( 'woocommerce_product_meta_end', function () {
 	global $product;
 	echo soh_get_product_links_html( $product );
 } );
- 
+
 /* 5. Shortcodes for Elementor */
 add_shortcode( 'product_url', function () {
 	return soh_get_product_link_html( '_product_url_link' );
@@ -1645,8 +2173,6 @@ add_shortcode( 'product_datasheet', function () {
 add_shortcode( 'product_links', function () {
 	return soh_get_product_links_html();
 } );
-
-
 
 
 /**
@@ -1660,15 +2186,10 @@ add_shortcode( 'product_links', function () {
  * Esc to close, click-outside, focus handling, remove-from-cart without reload.
  *
  * Options: menu="Main Menu" (default)  logo="image URL"  sticky="yes|no"
- * Load from functions.php:  require_once get_stylesheet_directory() . '/fanvil-header.php';
  */
- 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
- 
+
 define( 'FSH_LOGO', 'https://soharon.co.uk/off-27/wp-content/uploads/2026/09/Group-134.png' );
- 
+
 /* ---------------------------------------------------------------------------
  * Shortcode
  * ------------------------------------------------------------------------ */
@@ -1678,13 +2199,12 @@ function fsh_render_header( $atts ) {
 		'logo'   => FSH_LOGO,
 		'sticky' => 'yes',
 	), $atts, 'fanvil_site_header' );
- 
+
 	$GLOBALS['fsh_used'] = array( 'atts' => $atts );
- 
+
 	$count    = fsh_cart_count();
-	$cart_url = function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/cart/' );
 	$acct_url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : wp_login_url();
- 
+
 	ob_start();
 	fsh_print_css( 'yes' === $atts['sticky'] );
 	?>
@@ -1692,11 +2212,11 @@ function fsh_render_header( $atts ) {
 <div class="fsh fsh-header" data-fsh>
 	<div class="fsh-bar">
 		<?php echo fsh_logo( $atts['logo'] ); // phpcs:ignore ?>
- 
+
 		<div class="fsh-search-wrap"><?php echo fsh_search_form( 'fsh-search-desktop' ); // phpcs:ignore ?></div>
- 
+
 		<nav class="fsh-nav" aria-label="Main menu"><?php echo fsh_menu( $atts['menu'], 'fsh-menu', true ); // phpcs:ignore ?></nav>
- 
+
 		<div class="fsh-actions">
 			<div class="fsh-cart">
 				<input type="checkbox" id="fsh-cart-toggle" class="fsh-toggle" tabindex="-1" aria-hidden="true">
@@ -1718,10 +2238,10 @@ function fsh_render_header( $atts ) {
 	<?php
 	return ob_get_clean();
 }
- 
+
 add_shortcode( 'fanvil_site_header', 'fsh_safe_render' );
 add_shortcode( 'fanvil_header', 'fsh_safe_render' ); // old name keeps working, now shows the new header
- 
+
 function fsh_safe_render( $atts ) {
 	$level = ob_get_level();
 	try {
@@ -1735,7 +2255,7 @@ function fsh_safe_render( $atts ) {
 			: '';
 	}
 }
- 
+
 /* ---------------------------------------------------------------------------
  * Mobile menu panel – printed at the end of <body>, outside any Elementor
  * container, so nothing can clip or hide it.
@@ -1773,7 +2293,7 @@ add_action( 'wp_footer', function () {
 </script>
 	<?php
 }, 99 );
- 
+
 /* ---------------------------------------------------------------------------
  * Pieces
  * ------------------------------------------------------------------------ */
@@ -1787,7 +2307,7 @@ function fsh_logo( $url ) {
 		: '<span class="fsh-logo__text">' . esc_html( $site ) . '</span>';
 	return '<a class="fsh-logo" href="' . esc_url( home_url( '/' ) ) . '" aria-label="' . esc_attr( $site ) . ' – home">' . $inner . '</a>';
 }
- 
+
 function fsh_menu( $menu, $class, $home = false ) {
 	if ( $menu && ! wp_get_nav_menu_object( $menu ) ) {
 		$menu = '';
@@ -1810,13 +2330,13 @@ function fsh_menu( $menu, $class, $home = false ) {
 		'items_wrap'  => '<ul class="%2$s">' . ( $home ? str_replace( '%', '%%', fsh_home_item() ) : '' ) . '%3$s</ul>',
 	) );
 }
- 
+
 /* Home icon (no visible text; screen readers hear "Home") */
 function fsh_home_item() {
 	$current = is_front_page() ? ' current-menu-item' : '';
 	return '<li class="menu-item fsh-home' . $current . '"><a href="' . esc_url( home_url( '/' ) ) . '" aria-label="Home" title="Home"' . ( $current ? ' aria-current="page"' : '' ) . '>' . fsh_icon( 'home' ) . '</a></li>';
 }
- 
+
 function fsh_search_form( $id ) {
 	return '<form class="fsh-search" role="search" method="get" action="' . esc_url( home_url( '/' ) ) . '">'
 		. '<label class="fsh-sr" for="' . esc_attr( $id ) . '">Search products</label>'
@@ -1825,7 +2345,7 @@ function fsh_search_form( $id ) {
 		. '<button type="submit" class="fsh-search__btn" aria-label="Search">' . fsh_icon( 'search' ) . '</button>'
 		. '</form>';
 }
- 
+
 function fsh_icon( $name ) {
 	$icons = array(
 		'cart'   => '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 4h2.2l2.1 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L21 8H6.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>',
@@ -1836,20 +2356,20 @@ function fsh_icon( $name ) {
 	);
 	return isset( $icons[ $name ] ) ? $icons[ $name ] : '';
 }
- 
+
 function fsh_cart_count() {
 	return ( function_exists( 'WC' ) && WC()->cart ) ? (int) WC()->cart->get_cart_contents_count() : 0;
 }
- 
+
 function fsh_count_html( $count, $extra = '' ) {
 	return '<span class="fsh-count ' . esc_attr( $extra ) . ( $count ? '' : ' is-empty' ) . '">' . (int) $count . '</span>';
 }
- 
+
 /* Cart dropdown contents (own markup – Elementor/theme cart templates can't change it) */
 function fsh_minicart_body() {
 	$cart  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart : null;
 	$count = $cart ? $cart->get_cart_contents_count() : 0;
- 
+
 	ob_start();
 	echo '<div class="fsh-mc">';
 	echo '<div class="fsh-mc__head"><p class="fsh-mc__title">Your cart';
@@ -1857,7 +2377,7 @@ function fsh_minicart_body() {
 		echo '<span class="fsh-mc__badge">' . esc_html( sprintf( _n( '%d item', '%d items', $count, 'woocommerce' ), $count ) ) . '</span>';
 	}
 	echo '</p><label for="fsh-cart-toggle" class="fsh-round fsh-mc__close" role="button" tabindex="0" aria-label="Close cart">' . fsh_icon( 'close' ) . '</label></div>';
- 
+
 	if ( ! $cart || $cart->is_empty() ) {
 		echo '<div class="fsh-mc__empty">' . fsh_icon( 'cart' ) . '<p>Your cart is empty.</p>';
 		echo '<a class="fsh-btn fsh-btn--solid" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">Browse products</a></div>';
@@ -1872,7 +2392,7 @@ function fsh_minicart_body() {
 			$name  = $product->get_name();
 			$sku   = $product->get_sku();
 			$thumb = $product->get_image( 'woocommerce_gallery_thumbnail', array( 'class' => 'fsh-mc__img', 'alt' => '' ) );
- 
+
 			echo '<li class="fsh-mc__item">';
 			echo '<span class="fsh-mc__media">' . $thumb . '</span>'; // phpcs:ignore
 			echo '<div class="fsh-mc__info">';
@@ -1907,7 +2427,7 @@ function fsh_minicart_body() {
 	echo '</div>';
 	return ob_get_clean();
 }
- 
+
 /* Live cart updates (after add to cart / remove) */
 add_filter( 'woocommerce_add_to_cart_fragments', function ( $fragments ) {
 	$count                                  = fsh_cart_count();
@@ -1916,14 +2436,14 @@ add_filter( 'woocommerce_add_to_cart_fragments', function ( $fragments ) {
 	$fragments['.fsh-minicart .fsh-mc']     = fsh_minicart_body();
 	return $fragments;
 } );
- 
+
 /* Header search shows products only */
 add_action( 'pre_get_posts', function ( $q ) {
 	if ( ! is_admin() && $q->is_main_query() && $q->is_search() && isset( $_GET['post_type'] ) && 'product' === $_GET['post_type'] ) { // phpcs:ignore
 		$q->set( 'post_type', 'product' );
 	}
 } );
- 
+
 /* ---------------------------------------------------------------------------
  * CSS
  * ------------------------------------------------------------------------ */
@@ -1948,17 +2468,17 @@ function fsh_print_css( $sticky ) {
 body > .elementor-location-header,body > #site-header{position:sticky;top:var(--wp-admin--admin-bar--height,0px);z-index:999}
 @media (max-width:600px){body > .elementor-location-header,body > #site-header{top:0}}
 <?php endif; ?>
- 
+
 /* Bar */
 .fsh-header{position:relative;z-index:10;background:#fff;transition:box-shadow .25s}
 .fsh-header.is-scrolled{box-shadow:0 6px 24px rgba(26,29,33,.08)}
 .fsh-bar{display:flex;align-items:center;gap:28px;width:100%;max-width:1250px;margin:0 auto;padding:14px 24px}
- 
+
 /* Logo – locked size so theme/Elementor image rules can't enlarge it */
 .fsh a.fsh-logo{display:flex;align-items:center;flex:0 0 auto;line-height:0}
 .fsh .fsh-logo img.fsh-logo__img{display:block;width:auto !important;height:46px !important;max-width:none !important;max-height:none !important;margin:0 !important;object-fit:contain}
 .fsh-logo__text{font-size:22px;font-weight:700;color:var(--r)}
- 
+
 /* Search */
 .fsh-search-wrap{flex:1 1 280px;min-width:220px;max-width:340px}
 .fsh .fsh-search{display:flex;align-items:center;gap:8px;width:100%;margin:0}
@@ -1967,7 +2487,7 @@ body > .elementor-location-header,body > #site-header{position:sticky;top:var(--
 .fsh .fsh-search__input::placeholder{color:#9AA0A8}
 .fsh .fsh-search__btn,.fsh .fsh-search__btn:hover,.fsh .fsh-search__btn:focus{flex:0 0 44px;display:flex;align-items:center;justify-content:center;width:44px !important;height:44px !important;min-height:0;margin:0 !important;padding:0 !important;border:0 !important;border-radius:50% !important;background:var(--r) !important;color:#fff !important;box-shadow:none !important;cursor:pointer;transition:background .2s}
 .fsh .fsh-search__btn:hover{background:var(--rd) !important}
- 
+
 /* Desktop menu */
 .fsh-nav{margin-left:auto}
 .fsh .fsh-menu{display:flex;align-items:center;gap:4px}
@@ -1976,7 +2496,7 @@ body > .elementor-location-header,body > #site-header{position:sticky;top:var(--
 .fsh .fsh-menu .current-menu-item > a,.fsh .fsh-menu .current_page_parent > a,.fsh .fsh-menu .current-menu-ancestor > a{background:var(--r);color:#fff}
 .fsh .fsh-menu .fsh-home > a{justify-content:center;width:42px;padding:0}
 .fsh .fsh-menu .fsh-home svg{width:20px;height:20px}
- 
+
 /* Icons */
 .fsh-actions{display:flex;align-items:center;gap:8px}
 .fsh .fsh-icon{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0;border-radius:50%;color:var(--r);cursor:pointer;transition:background .2s}
@@ -1986,7 +2506,7 @@ body > .elementor-location-header,body > #site-header{position:sticky;top:var(--
 .fsh-count.is-empty{display:none}
 .fsh-cart{position:relative}
 #fsh-cart-toggle:checked ~ .fsh-cart-btn{background:var(--rs)}
- 
+
 /* Cart dropdown */
 .fsh-minicart{position:absolute;top:calc(100% + 12px);right:-12px;z-index:1000;width:380px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 60px rgba(26,29,33,.18);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s;text-align:left}
 .fsh-minicart::before{content:"";position:absolute;top:-8px;right:27px;width:14px;height:14px;background:#fff;border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
@@ -2025,12 +2545,12 @@ body > .elementor-location-header,body > #site-header{position:sticky;top:var(--
 .fsh-mc__empty svg{width:40px;height:40px}
 .fsh .fsh-mc__empty p{margin:0 0 6px;font-size:14px;color:var(--mut)}
 .fsh-mc__empty .fsh-btn{min-width:180px}
- 
+
 /* Burger */
 .fsh .fsh-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:44px;height:44px;margin:0;padding:0 11px;border-radius:50%;cursor:pointer;transition:background .2s}
 .fsh .fsh-burger:hover{background:var(--rs)}
 .fsh-burger span{display:block;height:2px;border-radius:2px;background:var(--ink)}
- 
+
 /* Mobile panel (outside the header, end of page) */
 .fsh-drawer{position:fixed;inset:0;z-index:100002;visibility:hidden;transition:visibility 0s linear .3s}
 .fsh-menu-toggle:checked + .fsh-drawer{visibility:visible;transition:visibility 0s}
@@ -2055,7 +2575,7 @@ body > .elementor-location-header,body > #site-header{position:sticky;top:var(--
 .fsh-drawer__links svg{width:22px;height:22px;color:var(--r)}
 .fsh-drawer__links .fsh-count{position:static;margin-left:auto;border:0}
 html:has(.fsh-menu-toggle:checked),html:has(.fsh-menu-toggle:checked) body{overflow:hidden}
- 
+
 @media (max-width:1024px){
  .fsh-bar{gap:10px;padding:10px 16px}
  .fsh-search-wrap,.fsh-nav{display:none}
@@ -2072,7 +2592,7 @@ html:has(.fsh-menu-toggle:checked),html:has(.fsh-menu-toggle:checked) body{overf
 </style>
 	<?php
 }
- 
+
 /* ---------------------------------------------------------------------------
  * JavaScript (extras only – the header works without it)
  * ------------------------------------------------------------------------ */
@@ -2084,7 +2604,7 @@ function fsh_js() {
 	var menuT = document.getElementById('fsh-menu-toggle');
 	var cartT = document.getElementById('fsh-cart-toggle');
 	var header = document.querySelector('[data-fsh]');
- 
+
 	function sync() {
 		var m = menuT && menuT.checked, c = cartT && cartT.checked;
 		document.querySelectorAll('.fsh-burger').forEach(function (b) { b.setAttribute('aria-expanded', m ? 'true' : 'false'); });
@@ -2104,10 +2624,10 @@ function fsh_js() {
 		}
 	}
 	function setCart(open) { if (cartT) { cartT.checked = open; sync(); } }
- 
+
 	if (menuT) menuT.addEventListener('change', function () { setMenu(menuT.checked); });
 	if (cartT) cartT.addEventListener('change', sync);
- 
+
 	/* Keyboard: labels act as buttons */
 	document.addEventListener('keydown', function (e) {
 		var lbl = e.target.closest && e.target.closest('label[role="button"]');
@@ -2124,7 +2644,7 @@ function fsh_js() {
 			else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
 		}
 	});
- 
+
 	/* Click outside the cart closes it; remove items without reloading */
 	document.addEventListener('click', function (e) {
 		var rm = e.target.closest('.fsh-mc__remove');
@@ -2149,9 +2669,9 @@ function fsh_js() {
 		}
 		if (cartT && cartT.checked && !e.target.closest('.fsh-cart')) setCart(false);
 	});
- 
+
 	window.addEventListener('resize', function () { if (window.innerWidth > 1024 && menuT && menuT.checked) setMenu(false); });
- 
+
 	/* Shadow once the page scrolls */
 	if (header) {
 		var onScroll = function () { header.classList.toggle('is-scrolled', window.scrollY > 4); };
@@ -2162,15 +2682,13 @@ function fsh_js() {
 })();
 FSHJS;
 }
- 
 
- 
+
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-
 
 
 /**
@@ -2181,13 +2699,7 @@ FSHJS;
  * - Category pages ....... main category tabs (active highlighted), sub-category pills,
  *                          4-column product grid with auto-scrolling image carousel,
  *                          price, quantity + add to cart, stock status, pagination
- *
- * Add to the child theme's functions.php (without the opening <?php line).
  */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
 
 /* Products per page on category pages (4 columns x 3 rows) */
 add_filter( 'loop_shop_per_page', function () {
@@ -2235,12 +2747,20 @@ function fvs_sub_categories( $parent ) {
 
 /**
  * Product count (including sub-categories) and first product ID of a category.
- * Counted live because imported products are often assigned only to the sub-category.
+ * Counted from products (not the term count) because imported products are often
+ * assigned only to the sub-category. Results are cached for 12 hours and cleared
+ * whenever a product or category changes, so each page no longer runs one query per category.
  */
 function fvs_cat_info( $term ) {
-	static $cache = array();
-	if ( isset( $cache[ $term->term_id ] ) ) {
-		return $cache[ $term->term_id ];
+	global $fvs_cat_cache;
+	if ( ! is_array( $fvs_cat_cache ) ) {
+		$fvs_cat_cache = get_transient( 'fvs_cat_info' );
+		if ( ! is_array( $fvs_cat_cache ) ) {
+			$fvs_cat_cache = array();
+		}
+	}
+	if ( isset( $fvs_cat_cache[ $term->term_id ] ) ) {
+		return $fvs_cat_cache[ $term->term_id ];
 	}
 	$q = new WP_Query( array(
 		'post_type'      => 'product',
@@ -2256,12 +2776,50 @@ function fvs_cat_info( $term ) {
 			'include_children' => true,
 		) ),
 	) );
-	$cache[ $term->term_id ] = array(
+	$fvs_cat_cache[ $term->term_id ] = array(
 		'count' => (int) $q->found_posts,
 		'first' => $q->posts ? (int) $q->posts[0] : 0,
 	);
-	return $cache[ $term->term_id ];
+	if ( ! has_action( 'shutdown', 'fvs_save_cat_cache' ) ) {
+		add_action( 'shutdown', 'fvs_save_cat_cache' );
+	}
+	return $fvs_cat_cache[ $term->term_id ];
 }
+
+/* Save newly counted categories once at the end of the request */
+function fvs_save_cat_cache() {
+	global $fvs_cat_cache;
+	if ( is_array( $fvs_cat_cache ) ) {
+		set_transient( 'fvs_cat_info', $fvs_cat_cache, 12 * HOUR_IN_SECONDS );
+	}
+}
+
+/* Clear the category cache when products or categories change */
+function fvs_clear_cat_cache() {
+	global $fvs_cat_cache;
+	$fvs_cat_cache = null;
+	remove_action( 'shutdown', 'fvs_save_cat_cache' );
+	delete_transient( 'fvs_cat_info' );
+}
+foreach ( array( 'woocommerce_update_product', 'woocommerce_new_product', 'created_product_cat', 'edited_product_cat', 'delete_product_cat' ) as $fvs_hook ) {
+	add_action( $fvs_hook, 'fvs_clear_cat_cache' );
+}
+unset( $fvs_hook );
+add_action( 'transition_post_status', function ( $new, $old, $post ) {
+	if ( 'product' === $post->post_type && $new !== $old ) {
+		fvs_clear_cat_cache();
+	}
+}, 10, 3 );
+add_action( 'deleted_post', function ( $post_id, $post = null ) {
+	if ( $post && 'product' === $post->post_type ) {
+		fvs_clear_cat_cache();
+	}
+}, 10, 2 );
+add_action( 'set_object_terms', function ( $object_id, $terms, $tt_ids, $taxonomy ) {
+	if ( 'product_cat' === $taxonomy ) {
+		fvs_clear_cat_cache();
+	}
+}, 10, 4 );
 
 /** Category image: its own thumbnail, otherwise the first product's main image. */
 function fvs_cat_image_id( $term ) {
@@ -3129,8 +3687,12 @@ function fvp_product_shortcode_render( $atts ) {
 	$terms   = get_the_terms( $id, 'product_cat' );
 	$current = null;
 	if ( $terms && ! is_wp_error( $terms ) ) {
-		usort( $terms, function ( $a, $b ) {
-			return count( get_ancestors( $b->term_id, 'product_cat', 'taxonomy' ) ) - count( get_ancestors( $a->term_id, 'product_cat', 'taxonomy' ) );
+		$depth = array();
+		foreach ( $terms as $t ) {
+			$depth[ $t->term_id ] = count( get_ancestors( $t->term_id, 'product_cat', 'taxonomy' ) );
+		}
+		usort( $terms, function ( $a, $b ) use ( $depth ) {
+			return $depth[ $b->term_id ] - $depth[ $a->term_id ];
 		} );
 		$current = $terms[0];
 	}
