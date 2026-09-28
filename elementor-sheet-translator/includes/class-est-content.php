@@ -91,6 +91,18 @@ class EST_Content {
 			}
 		}
 
+		// Contact Form 7 forms (labels, placeholders, options, button, messages).
+		foreach ( get_posts( array( 'post_type' => 'wpcf7_contact_form', 'numberposts' => -1, 'post_status' => 'publish' ) ) as $form ) {
+			$key             = 'cf7-' . $form->ID;
+			$sources[ $key ] = array(
+				'key'   => $key,
+				'kind'  => 'cf7',
+				'id'    => (int) $form->ID,
+				'title' => $form->post_title,
+				'group' => __( 'Contact Form', 'est' ),
+			);
+		}
+
 		foreach ( (array) wp_get_nav_menus() as $menu ) {
 			$key             = 'menu-' . $menu->term_id;
 			$sources[ $key ] = array(
@@ -143,6 +155,13 @@ class EST_Content {
 			case 'site':
 				$out[] = get_option( 'blogname' );
 				$out[] = get_option( 'blogdescription' );
+				break;
+
+			case 'cf7':
+				$out = array_merge( $out, self::cf7_strings( (string) get_post_meta( $source['id'], '_form', true ) ) );
+				foreach ( (array) get_post_meta( $source['id'], '_messages', true ) as $msg ) {
+					$out[] = $msg;
+				}
 				break;
 
 			case 'menu':
@@ -199,6 +218,26 @@ class EST_Content {
 		$post = get_post( $source['id'] );
 		preg_match_all( '#<img\b[^>]*\ssrc=["\']([^"\']+)#i', $post ? $post->post_content : '', $m );
 		return array_values( array_unique( array_filter( $m[1], array( 'EST_Extractor', 'is_image_url' ) ) ) );
+	}
+
+	/**
+	 * Texts of a CF7 form template: quoted values inside [tags] (placeholders,
+	 * options, submit label) and the text between tags (labels, headings).
+	 */
+	public static function cf7_strings( $template ) {
+		$out = array();
+		preg_match_all( '/\[[^\]]+\]/', $template, $tags );
+		foreach ( $tags[0] as $tag ) {
+			preg_match_all( '/"([^"]*)"|\'([^\']*)\'/', $tag, $q );
+			foreach ( $q[1] as $i => $v ) {
+				$out[] = '' !== $v ? $v : $q[2][ $i ];
+			}
+		}
+		$text = preg_replace( '/\[[^\]]+\]/', "\n", $template );
+		foreach ( preg_split( '/\n|<[^>]+>/', $text ) as $line ) {
+			$out[] = $line;
+		}
+		return $out;
 	}
 
 	public static function is_elementor( $post_id ) {
