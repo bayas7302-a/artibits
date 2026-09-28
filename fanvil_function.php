@@ -2533,7 +2533,8 @@ function soharon_track_print_css() {
     border:3px solid var(--t-border); background:#fff; color:var(--t-muted); font-size:13px; font-weight:600;
 }
 .soharon-track-steps li.is-done .soharon-track-dot{ border-color:var(--t-green); background:var(--t-green); color:#fff; }
-.soharon-track-steps li.is-current .soharon-track-dot{ border-color:var(--t-red); color:var(--t-red); box-shadow:0 0 0 5px rgba(219,20,29,.12); }
+.soharon-track-steps li.is-current .soharon-track-dot{ border-color:var(--t-green); background:var(--t-green-soft); color:var(--t-green); box-shadow:0 0 0 5px rgba(23,128,74,.12); }
+.soharon-track-steps li.is-current strong{ color:var(--t-green); }
 .soharon-track-steps strong{ font-size:12.5px; font-weight:600; line-height:1.3; }
 .soharon-track-steps li:not(.is-done):not(.is-current) strong{ color:var(--t-muted); font-weight:500; }
 .soharon-track-steps small{ font-size:11.5px; color:var(--t-muted); }

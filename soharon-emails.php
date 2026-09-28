@@ -192,7 +192,7 @@ tfoot tr:last-child td.td .amount { color:{$r}; }
 .sohe-steps { width:100%; margin:4px 0 0; }
 .sohe-step-label { font-family:{$f}; font-size:14px; line-height:1.4; color:{$m}; }
 .sohe-step-done, .sohe-step-current { color:{$t}; font-weight:600; }
-.sohe-step-current { color:{$r}; }
+.sohe-step-current { color:{$g}; }
 .sohe-now { font-weight:500; }
 .sohe-step-when { font-family:{$f}; font-size:12px; color:{$m}; }
 #body_content .sohe-details th, #body_content .sohe-details td { padding:10px 0 0; }
@@ -279,9 +279,10 @@ function sohe_tracking_html( $order ) {
                 <table role="presentation" class="sohe-steps" width="100%" cellpadding="0" cellspacing="0" border="0">
                     <?php foreach ( $steps as $i => $label ) :
                         $state = ( $i < $step || $step === $last ) ? 'done' : ( $i === $step ? 'current' : 'todo' );
-                        $dot   = 'done' === $state ? sohe_c( 'green' ) : ( 'current' === $state ? sohe_c( 'red' ) : '#ffffff' );
-                        $ring  = 'todo' === $state ? sohe_c( 'border' ) : $dot;
-                        $ink   = 'todo' === $state ? sohe_c( 'muted' ) : '#ffffff';
+                        // done = solid green tick, current = green ring (in progress), todo = grey ring
+                        $dot   = 'done' === $state ? sohe_c( 'green' ) : ( 'current' === $state ? '#E8F6EE' : '#ffffff' );
+                        $ring  = 'todo' === $state ? sohe_c( 'border' ) : sohe_c( 'green' );
+                        $ink   = 'done' === $state ? '#ffffff' : ( 'current' === $state ? sohe_c( 'green' ) : sohe_c( 'muted' ) );
                         ?>
                         <tr>
                             <td class="sohe-step-dot" width="26" valign="middle" style="width:26px;padding:0;vertical-align:middle;">
