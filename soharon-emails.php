@@ -83,9 +83,8 @@ function sohe_email_header( $email_heading, $email = null ) {
                     </td>
                 </tr>
                 <tr>
-                    <td class="sohe-card" bgcolor="#ffffff">
+                    <td class="sohe-card" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid <?php echo esc_attr( sohe_c( 'border' ) ); ?>;border-top:5px solid <?php echo esc_attr( sohe_c( 'red' ) ); ?>;border-radius:20px;">
                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                            <tr><td class="sohe-topbar" height="5" bgcolor="<?php echo esc_attr( sohe_c( 'red' ) ); ?>"></td></tr>
                             <?php if ( $email_heading ) : ?>
                                 <tr><td class="sohe-hero"><h1><?php echo esc_html( $email_heading ); ?></h1></td></tr>
                             <?php endif; ?>
@@ -147,8 +146,7 @@ body, .sohe-body { margin:0; padding:0; background-color:{$bg}; -webkit-text-siz
 .sohe-logo { padding:0 0 22px; text-align:center; }
 .sohe-logo img { height:46px; width:auto; max-width:220px; border:0; outline:none; text-decoration:none; display:inline-block; }
 .sohe-logo-text { font-family:{$f}; font-size:22px; font-weight:700; color:{$t}; }
-.sohe-card { background-color:#ffffff; border:1px solid {$l}; border-radius:20px; overflow:hidden; }
-.sohe-topbar { font-size:0; line-height:0; background-color:{$r}; }
+.sohe-card { background-color:#ffffff; border:1px solid {$l}; border-top:5px solid {$r}; border-radius:20px; }
 .sohe-hero { padding:34px 40px 6px; }
 h1 { margin:0; padding:0; font-family:{$f}; font-size:26px; font-weight:700; line-height:1.3; color:{$t}; text-align:left; text-shadow:none; }
 .sohe-body-cell { padding:14px 40px 36px; }
@@ -186,10 +184,7 @@ tfoot tr:last-child td.td .amount { color:{$r}; }
 .sohe-pill { display:inline-block; padding:4px 12px; border-radius:999px; font-family:{$f}; font-size:12px; font-weight:600; }
 .sohe-track-msg { margin:10px 0 18px !important; color:{$b}; font-size:14px; }
 .sohe-track-msg.is-stopped { color:{$r}; font-weight:600; }
-.sohe-bar { width:100%; border-radius:4px; }
-.sohe-bar td { height:6px; font-size:0; line-height:0; }
-.sohe-bar-done { background-color:{$g}; border-radius:4px; }
-.sohe-bar-todo { background-color:{$l}; border-radius:4px; }
+.sohe-bar { width:100%; border-radius:3px; background-color:{$l}; }
 .sohe-steps { width:100%; margin-top:10px; }
 .sohe-step { padding:0 2px; text-align:center; vertical-align:top; font-family:{$f}; font-size:11px; line-height:1.3; color:{$m}; }
 .sohe-dot { display:inline-block; width:22px; height:22px; line-height:22px; border-radius:50%; background-color:{$l}; color:{$m}; font-size:11px; font-weight:700; text-align:center; }
@@ -280,10 +275,11 @@ function sohe_tracking_html( $order ) {
 
             <?php if ( $step >= 0 && $count > 1 ) :
                 $pct = $step === $last ? 100 : (int) round( ( $step + 0.5 ) / $count * 100 ); // ends at the current step's dot ?>
-                <table role="presentation" class="sohe-bar" cellpadding="0" cellspacing="0" border="0">
+                <?php $bar = 'height:6px;line-height:6px;font-size:6px;mso-line-height-rule:exactly;padding:0;'; ?>
+                <table role="presentation" class="sohe-bar" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="<?php echo esc_attr( sohe_c( 'border' ) ); ?>" style="width:100%;border-radius:3px;background-color:<?php echo esc_attr( sohe_c( 'border' ) ); ?>;">
                     <tr>
-                        <?php if ( $pct > 0 ) : ?><td class="sohe-bar-done" width="<?php echo $pct; ?>%" bgcolor="<?php echo esc_attr( sohe_c( 'green' ) ); ?>">&nbsp;</td><?php endif; ?>
-                        <?php if ( $pct < 100 ) : ?><td class="sohe-bar-todo" bgcolor="<?php echo esc_attr( sohe_c( 'border' ) ); ?>">&nbsp;</td><?php endif; ?>
+                        <?php if ( $pct > 0 ) : ?><td width="<?php echo $pct; ?>%" height="6" bgcolor="<?php echo esc_attr( sohe_c( 'green' ) ); ?>" style="<?php echo $bar; ?>width:<?php echo $pct; ?>%;background-color:<?php echo esc_attr( sohe_c( 'green' ) ); ?>;border-radius:3px;">&nbsp;</td><?php endif; ?>
+                        <?php if ( $pct < 100 ) : ?><td height="6" style="<?php echo $bar; ?>">&nbsp;</td><?php endif; ?>
                     </tr>
                 </table>
                 <table role="presentation" class="sohe-steps" cellpadding="0" cellspacing="0" border="0">
