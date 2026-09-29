@@ -3714,7 +3714,9 @@ function fvs_shop_shortcode_render( $atts ) {
 	ob_start();
 	fvs_print_assets();
 
-	if ( is_tax( FVS_PROMO_TAX ) ) {
+	if ( is_post_type_archive( 'fanvil_event' ) && function_exists( 'fve_render_events' ) ) {
+		echo fve_render_events( array() ); // phpcs:ignore -- /events/ shown through a shop template
+	} elseif ( is_tax( FVS_PROMO_TAX ) ) {
 		fvs_render_promotion_archive( 'yes' === $atts['show_title'] );
 	} elseif ( is_shop() && ! is_search() && ! is_product_category() ) {
 		fvs_render_category_grid();
@@ -5121,9 +5123,10 @@ function fvh_print_home_css() {
  * EVENTS – post type "Events" + events page
  * - Admin: Events → Add New: title, image (Featured image), description (editor)
  *   and an "Event details" box: location, start date, end date, time.
- * - Page: /events/ (and the [fanvil_events] shortcode on any page):
- *   red "EVENTS" bar + cards (3 per row on desktop, 2 on tablet, 1 on phones).
- *   Upcoming events first (soonest first), then past events.
+ * - Page: /events/ (and the [fanvil_events] shortcode on any page, options title,
+ *   subtitle, limit, past="no"): page title + subtitle, Upcoming / Past tabs,
+ *   cards 3 per row on desktop, 2 on tablet, 1 on phones (soonest first).
+ *   Only the title is required; empty date/time/location are not shown.
  *   Clicking a card opens a popup with the full description.
  * - An event's own link (/events/name/) opens the events page with its popup.
  * ======================================================================== */
@@ -5186,16 +5189,18 @@ function fve_details_box( $post ) {
 	<table class="form-table" role="presentation">
 		<tr>
 			<th scope="row"><label for="fve-location">Location</label></th>
-			<td><input type="text" id="fve-location" name="fve_location" class="large-text" value="<?php echo esc_attr( $v['_fve_location'] ); ?>" placeholder="e.g. Hall 5 | Booth 535 H, Dubai World Trade Centre"></td>
+			<td><input type="text" id="fve-location" name="fve_location" class="large-text" value="<?php echo esc_attr( $v['_fve_location'] ); ?>" placeholder="e.g. Hall 5 | Booth 535 H, Dubai World Trade Centre">
+				<p class="description">Optional.</p></td>
 		</tr>
 		<tr>
 			<th scope="row"><label for="fve-start">Start date</label></th>
-			<td><input type="date" id="fve-start" name="fve_start" value="<?php echo esc_attr( $v['_fve_start'] ); ?>" required></td>
+			<td><input type="date" id="fve-start" name="fve_start" value="<?php echo esc_attr( $v['_fve_start'] ); ?>">
+				<p class="description">Optional.</p></td>
 		</tr>
 		<tr>
 			<th scope="row"><label for="fve-end">End date</label></th>
 			<td><input type="date" id="fve-end" name="fve_end" value="<?php echo esc_attr( $v['_fve_end'] ); ?>">
-				<p class="description">Leave empty for a one-day event.</p></td>
+				<p class="description">Optional – leave empty for a one-day event.</p></td>
 		</tr>
 		<tr>
 			<th scope="row"><label for="fve-time">Time</label></th>
@@ -5203,7 +5208,7 @@ function fve_details_box( $post ) {
 				<p class="description">Optional.</p></td>
 		</tr>
 	</table>
-	<p class="description">The <strong>title</strong>, <strong>event image</strong> (right-hand column) and <strong>description</strong> (editor above) are shown on the events page; the description opens in a popup.</p>
+	<p class="description">Only the <strong>title</strong> is needed. Empty fields are simply not shown. The <strong>event image</strong> (right-hand column) and <strong>description</strong> (editor above) appear on the events page; the description opens in a popup. Events without a date are listed after the dated upcoming events.</p>
 	<?php
 }
 
@@ -5298,16 +5303,43 @@ add_shortcode( 'fanvil_events', function ( $atts ) {
 } );
 
 function fve_render_events( $atts ) {
-	$atts = shortcode_atts( array( 'title' => 'Events', 'limit' => 0, 'past' => 'yes' ), $atts, 'fanvil_events' );
-	$ids  = fve_get_events( (int) $atts['limit'], 'no' !== strtolower( $atts['past'] ) );
+	$atts  = shortcode_atts( array(
+		'title'    => 'Events',
+		'subtitle' => 'Meet the Fanvil team at exhibitions, roadshows and partner events.',
+		'limit'    => 0,
+		'past'     => 'yes',
+	), $atts, 'fanvil_events' );
+	$ids   = fve_get_events( (int) $atts['limit'], 'no' !== strtolower( $atts['past'] ) );
 	$today = wp_date( 'Y-m-d' );
+
+	// Upcoming / past split (for the tabs)
+	$past_ids = array();
+	foreach ( $ids as $id ) {
+		$last = get_post_meta( $id, '_fve_end', true ) ?: get_post_meta( $id, '_fve_start', true );
+		if ( $last && $last < $today ) $past_ids[ $id ] = true;
+	}
+	$n_past = count( $past_ids );
+	$n_up   = count( $ids ) - $n_past;
+	$tabs   = $n_up && $n_past; // tabs only when there is something in both
 
 	ob_start();
 	fve_print_assets();
 	echo '<div class="fve">';
+
+	echo '<header class="fve-head' . ( $tabs ? ' has-tabs' : '' ) . '">';
 	if ( '' !== trim( $atts['title'] ) ) {
-		echo '<h1 class="fve-bar">' . esc_html( $atts['title'] ) . '</h1>';
+		echo '<h1 class="fve-head__title">' . esc_html( $atts['title'] ) . '</h1>';
 	}
+	if ( '' !== trim( $atts['subtitle'] ) ) {
+		echo '<p class="fve-head__sub">' . esc_html( $atts['subtitle'] ) . '</p>';
+	}
+	if ( $tabs ) {
+		echo '<div class="fve-tabs" role="tablist" aria-label="Show events">';
+		printf( '<button type="button" role="tab" class="fve-tab is-active" aria-selected="true" data-fve-filter="upcoming">Upcoming <span class="fve-tab__n">%d</span></button>', (int) $n_up );
+		printf( '<button type="button" role="tab" class="fve-tab" aria-selected="false" data-fve-filter="past">Past <span class="fve-tab__n">%d</span></button>', (int) $n_past );
+		echo '</div>';
+	}
+	echo '</header>';
 
 	if ( ! $ids ) {
 		echo '<p class="fve-empty">There are no events at the moment. Please check back soon.</p></div>';
@@ -5320,15 +5352,14 @@ function fve_render_events( $atts ) {
 		$location = get_post_meta( $id, '_fve_location', true );
 		$time     = get_post_meta( $id, '_fve_time', true );
 		$date     = fve_date_label( $id );
-		$last     = get_post_meta( $id, '_fve_end', true ) ?: get_post_meta( $id, '_fve_start', true );
-		$is_past  = $last && $last < $today;
+		$is_past  = isset( $past_ids[ $id ] );
 		$slug     = get_post_field( 'post_name', $id );
 		$img      = get_post_thumbnail_id( $id );
 		$content  = get_post_field( 'post_content', $id );
 		?>
-		<li class="fve-item<?php echo $is_past ? ' is-past' : ''; ?>">
+		<li class="fve-item" data-fve-when="<?php echo $is_past ? 'past' : 'upcoming'; ?>"<?php echo ( $tabs && $is_past ) ? ' hidden' : ''; ?>>
 			<button type="button" class="fve-card" data-fve-open="fve-<?php echo esc_attr( $slug ); ?>" aria-haspopup="dialog">
-				<?php if ( $is_past ) : ?><span class="fve-tag">Past event</span><?php endif; ?>
+				<?php if ( $is_past && ! $tabs ) : ?><span class="fve-tag">Past event</span><?php endif; ?>
 				<span class="fve-card__title"><?php echo esc_html( $title ); ?></span>
 				<?php if ( $location ) : ?><span class="fve-card__loc"><?php echo esc_html( $location ); ?></span><?php endif; ?>
 				<?php if ( $date ) : ?><span class="fve-card__date"><?php echo esc_html( $date ); ?></span><?php endif; ?>
@@ -5395,7 +5426,20 @@ function fve_print_assets() {
 <style id="fve-css">
 .fve{--fve-red:<?php echo esc_attr( $red ); ?>;--fve-ink:#1A1D21;--fve-muted:#6B7280;--fve-card:#F1F2F4;font-family:'Poppins',sans-serif;color:var(--fve-ink);padding:10px 0 40px}
 .fve *{box-sizing:border-box}
-.fve .fve-bar{margin:0 0 32px;padding:10px 16px;border-radius:8px;background:var(--fve-red);color:#fff;font-size:24px;font-weight:700;line-height:1.3;letter-spacing:.04em;text-align:center;text-transform:uppercase}
+.fve-head{margin:0 0 30px;padding:6px 0 26px;border-bottom:1px solid #E6E8EB}
+.fve-head.has-tabs{padding-bottom:0}
+.fve .fve-head__title{position:relative;margin:0;padding:18px 0 0;font-size:34px;font-weight:700;line-height:1.2;color:var(--fve-ink);text-transform:none;letter-spacing:-.01em}
+.fve .fve-head__title::before{content:"";position:absolute;top:0;left:0;width:44px;height:4px;border-radius:2px;background:var(--fve-red)}
+.fve .fve-head__sub{margin:8px 0 0;max-width:640px;font-size:15px;line-height:1.6;color:var(--fve-muted)}
+.fve-tabs{display:flex;gap:32px;margin-top:20px}
+.fve .fve-tab,.fve .fve-tab:hover,.fve .fve-tab:focus{position:relative;display:inline-flex;align-items:center;gap:8px;margin:0;padding:14px 0;border:0;border-radius:0;background:transparent;color:var(--fve-muted);font:500 15px/1.2 'Poppins',sans-serif;text-transform:none;letter-spacing:normal;box-shadow:none;cursor:pointer}
+.fve .fve-tab:hover{color:var(--fve-ink)}
+.fve .fve-tab.is-active{color:var(--fve-ink);font-weight:600}
+.fve .fve-tab.is-active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--fve-red)}
+.fve .fve-tab:focus-visible{outline:2px solid var(--fve-red);outline-offset:2px}
+.fve-tab__n{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:var(--fve-muted);font-size:12px;font-weight:600}
+.fve-tab.is-active .fve-tab__n{background:#FDECEC;color:var(--fve-red)}
+.fve-item[hidden]{display:none}
 .fve .fve-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;margin:0;padding:0;list-style:none}
 .fve-item{margin:0;min-width:0}
 .fve .fve-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;height:100%;margin:0;padding:26px 24px 20px;border:0;border-radius:18px;background:var(--fve-card);color:var(--fve-ink);font:inherit;text-align:center;text-transform:none;letter-spacing:normal;cursor:pointer;box-shadow:none;transition:transform .2s,box-shadow .2s}
@@ -5408,7 +5452,6 @@ function fve_print_assets() {
 .fve .fve-card__img{display:block;width:auto;max-width:100%;height:auto;max-height:100%;margin:0;border-radius:6px;object-fit:contain}
 .fve-card__more{margin-top:14px;font-size:14px;font-weight:600;color:var(--fve-red);text-decoration:underline;text-underline-offset:4px}
 .fve-tag{position:absolute;top:14px;left:14px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600}
-.fve-item.is-past .fve-card{opacity:.75}
 .fve-empty{padding:40px 16px;text-align:center;color:var(--fve-muted)}
 
 /* Popup */
@@ -5432,7 +5475,9 @@ body.fve-lock{overflow:hidden}
 
 @media (max-width:1024px){.fve .fve-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}}
 @media (max-width:767px){
-	.fve .fve-bar{font-size:20px;margin-bottom:22px}
+	.fve .fve-head__title{font-size:26px}
+	.fve .fve-head__sub{font-size:14px}
+	.fve-head{margin-bottom:22px}
 	.fve .fve-grid{grid-template-columns:1fr;gap:18px}
 	.fve-card__title{font-size:19px}
 	.fve-card__loc,.fve-card__date{font-size:16px}
@@ -5453,9 +5498,26 @@ body.fve-lock{overflow:hidden}
 		dlg.dataset.ready = '1';
 		var inner = dlg.querySelector('.fve-pop__inner'), last = null;
 
+		function showTab(which) {
+			document.querySelectorAll('.fve-tab').forEach(function (t) {
+				var on = t.getAttribute('data-fve-filter') === which;
+				t.classList.toggle('is-active', on);
+				t.setAttribute('aria-selected', on ? 'true' : 'false');
+			});
+			document.querySelectorAll('.fve-item').forEach(function (li) {
+				li.hidden = li.getAttribute('data-fve-when') !== which;
+			});
+		}
+		document.addEventListener('click', function (e) {
+			var tab = e.target.closest('.fve-tab');
+			if (tab) showTab(tab.getAttribute('data-fve-filter'));
+		});
+
 		function open(id, trigger) {
 			var tpl = document.getElementById(id);
 			if (!tpl) return;
+			var li = tpl.closest('.fve-item');
+			if (li && li.hidden && document.querySelector('.fve-tab')) showTab(li.getAttribute('data-fve-when'));
 			inner.innerHTML = '';
 			inner.appendChild(tpl.content.cloneNode(true));
 			last = trigger || null;
