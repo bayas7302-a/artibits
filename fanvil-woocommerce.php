@@ -1,7 +1,7 @@
 <?php
 /**
- * Shop, category, sub-category, tag, product search, promotions and single product pages.
- * Used by functions.php when Elementor Pro is not active (replaces its Theme Builder templates).
+ * Shop, category, sub-category, tag, product search, promotions and single product pages
+ * (used by functions.php when Elementor Pro is not active), and the /events/ page.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -10,7 +10,9 @@ get_header();
 <main id="content" class="fvt-main">
 	<div class="fvt-container">
 		<?php
-		if ( is_product() ) {
+		if ( is_post_type_archive( 'fanvil_event' ) ) {
+			echo do_shortcode( '[fanvil_events]' );
+		} elseif ( is_product() ) {
 			while ( have_posts() ) {
 				the_post();
 				echo do_shortcode( '[fanvil_product]' );
