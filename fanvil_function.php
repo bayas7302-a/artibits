@@ -5366,7 +5366,7 @@ function fve_render_events( $atts ) {
 				<?php if ( $img ) : ?>
 					<span class="fve-card__media"><?php echo wp_get_attachment_image( $img, 'large', false, array( 'class' => 'fve-card__img', 'loading' => 'lazy', 'alt' => $title ) ); ?></span>
 				<?php endif; ?>
-				<span class="fve-card__more">View details</span>
+				<span class="fve-card__more">View details <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
 			</button>
 
 			<template id="fve-<?php echo esc_attr( $slug ); ?>">
@@ -5448,9 +5448,13 @@ function fve_print_assets() {
 .fve-card__title{font-size:22px;font-weight:700;line-height:1.25;text-transform:uppercase}
 .fve-card__loc{font-size:18px;line-height:1.35}
 .fve-card__date{font-size:18px;font-weight:500;color:var(--fve-red)}
-.fve-card__media{display:flex;align-items:center;justify-content:center;width:100%;height:320px;margin-top:14px}
-.fve .fve-card__img{display:block;width:auto;max-width:100%;height:auto;max-height:100%;margin:0;border-radius:6px;object-fit:contain}
-.fve-card__more{margin-top:14px;font-size:14px;font-weight:600;color:var(--fve-red);text-decoration:underline;text-underline-offset:4px}
+.fve-card__media{display:block;width:100%;height:320px;margin:16px 0 20px;border-radius:12px;overflow:hidden;background:#E6E8EB}
+.fve .fve-card__img{display:block;width:100% !important;height:100% !important;max-width:none;max-height:none;margin:0;border-radius:0;object-fit:cover;object-position:center;transition:transform .35s ease}
+.fve .fve-card:hover .fve-card__img{transform:scale(1.03)}
+.fve-card__more{display:inline-flex;align-items:center;gap:8px;margin-top:auto;padding:11px 24px;border:1.5px solid var(--fve-red);border-radius:999px;background:#fff;color:var(--fve-red);font-size:14px;font-weight:600;line-height:1.2;transition:background .2s,color .2s}
+.fve-card__more svg{display:block;transition:transform .2s}
+.fve .fve-card:hover .fve-card__more,.fve .fve-card:focus-visible .fve-card__more{background:var(--fve-red);color:#fff}
+.fve .fve-card:hover .fve-card__more svg{transform:translateX(3px)}
 .fve-tag{position:absolute;top:14px;left:14px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600}
 .fve-empty{padding:40px 16px;text-align:center;color:var(--fve-muted)}
 
@@ -5458,8 +5462,8 @@ function fve_print_assets() {
 .fve-pop{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);margin:auto;padding:0;border:0;border-radius:20px;background:#fff;color:#1A1D21;font-family:'Poppins',sans-serif;box-shadow:0 30px 80px rgba(0,0,0,.25);overflow:auto}
 .fve-pop::backdrop{background:rgba(17,17,17,.6)}
 .fve-pop__inner{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
-.fve-pop__media{display:flex;align-items:center;justify-content:center;padding:24px;background:#F1F2F4}
-.fve-pop__media img{display:block;width:auto;max-width:100%;height:auto;max-height:70vh;border-radius:8px;object-fit:contain}
+.fve-pop__media{position:relative;min-height:420px;background:#E6E8EB;overflow:hidden}
+.fve-pop__media img{position:absolute;inset:0;display:block;width:100% !important;height:100% !important;max-width:none;margin:0;object-fit:cover;object-position:center}
 .fve-pop__body{padding:36px 32px 32px}
 .fve-pop .fve-pop__title{margin:0 0 18px;padding-right:32px;font-size:24px;font-weight:700;line-height:1.25;color:#1A1D21;text-transform:uppercase}
 .fve-pop .fve-pop__meta{margin:0 0 20px;padding:0;list-style:none;border-top:1px solid #ECECEC}
@@ -5481,11 +5485,10 @@ body.fve-lock{overflow:hidden}
 	.fve .fve-grid{grid-template-columns:1fr;gap:18px}
 	.fve-card__title{font-size:19px}
 	.fve-card__loc,.fve-card__date{font-size:16px}
-	.fve-card__media{height:280px}
+	.fve-card__media{height:260px}
 	.fve-pop{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}
 	.fve-pop__inner{grid-template-columns:1fr}
-	.fve-pop__media{padding:16px}
-	.fve-pop__media img{max-height:45vh}
+	.fve-pop__media{min-height:0;height:240px}
 	.fve-pop__body{padding:22px 20px 24px}
 	.fve-pop .fve-pop__title{font-size:20px}
 }
