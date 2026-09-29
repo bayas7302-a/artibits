@@ -2533,7 +2533,8 @@ function soharon_track_print_css() {
     border:3px solid var(--t-border); background:#fff; color:var(--t-muted); font-size:13px; font-weight:600;
 }
 .soharon-track-steps li.is-done .soharon-track-dot{ border-color:var(--t-green); background:var(--t-green); color:#fff; }
-.soharon-track-steps li.is-current .soharon-track-dot{ border-color:var(--t-red); color:var(--t-red); box-shadow:0 0 0 5px rgba(219,20,29,.12); }
+.soharon-track-steps li.is-current .soharon-track-dot{ border-color:var(--t-green); background:var(--t-green-soft); color:var(--t-green); box-shadow:0 0 0 5px rgba(23,128,74,.12); }
+.soharon-track-steps li.is-current strong{ color:var(--t-green); }
 .soharon-track-steps strong{ font-size:12.5px; font-weight:600; line-height:1.3; }
 .soharon-track-steps li:not(.is-done):not(.is-current) strong{ color:var(--t-muted); font-weight:500; }
 .soharon-track-steps small{ font-size:11.5px; color:var(--t-muted); }
@@ -3307,6 +3308,7 @@ function fvs_clear_cat_cache() {
 	$fvs_cat_cache = null;
 	remove_action( 'shutdown', 'fvs_save_cat_cache' );
 	delete_transient( 'fvs_cat_info' );
+	delete_transient( 'fvs_promo_cats' );
 }
 foreach ( array( 'woocommerce_update_product', 'woocommerce_new_product', 'created_product_cat', 'edited_product_cat', 'delete_product_cat' ) as $fvs_hook ) {
 	add_action( $fvs_hook, 'fvs_clear_cat_cache' );
@@ -3323,7 +3325,7 @@ add_action( 'deleted_post', function ( $post_id, $post = null ) {
 	}
 }, 10, 2 );
 add_action( 'set_object_terms', function ( $object_id, $terms, $tt_ids, $taxonomy ) {
-	if ( 'product_cat' === $taxonomy ) {
+	if ( 'product_cat' === $taxonomy || 'product_promotion' === $taxonomy ) {
 		fvs_clear_cat_cache();
 	}
 }, 10, 4 );
@@ -3354,6 +3356,231 @@ function fvs_subtitle( $product ) {
 	return $name;
 }
 
+/* ===========================================================================
+ * Promotions – product taxonomy "Promotions" with one option: "Promotion"
+ * - Product edit screen → "Promotions" box with one checkbox (like Categories)
+ * - Page: /promotions/ shows every promoted product with the [fanvil_shop] layout:
+ *   "All" + main categories (only those with promoted products) → sub-category
+ *   pills → product grid. Category filter: /promotions/?pcat=category-slug
+ * The Elementor Product Archive template is used for this page (it is a product
+ * taxonomy), so the [fanvil_shop] shortcode there shows it automatically.
+ * ======================================================================== */
+define( 'FVS_PROMO_TAX', 'product_promotion' );
+define( 'FVS_PROMO_TERM', 'promotion' );
+
+add_action( 'init', function () {
+	register_taxonomy( FVS_PROMO_TAX, array( 'product' ), array(
+		'labels'             => array(
+			'name'          => 'Promotions',
+			'singular_name' => 'Promotion',
+			'menu_name'     => 'Promotions',
+			'all_items'     => 'All promotions',
+			'edit_item'     => 'Edit promotion',
+			'view_item'     => 'View promotion',
+			'update_item'   => 'Update promotion',
+			'search_items'  => 'Search promotions',
+			'not_found'     => 'No promotions found',
+		),
+		'hierarchical'       => true,
+		'public'             => true,
+		'show_ui'            => true,
+		'show_in_menu'       => false, // one fixed option, nothing to manage
+		'show_in_nav_menus'  => true,  // Appearance → Menus → Promotions
+		'show_admin_column'  => true,  // "Promotions" column in the Products list
+		'show_in_quick_edit' => true,
+		'show_in_rest'       => true,
+		'query_var'          => true,
+		'rewrite'            => array( 'slug' => 'promotions', 'with_front' => false ),
+		'meta_box_cb'        => 'fvs_promo_meta_box',
+		'capabilities'       => array(
+			'manage_terms' => 'manage_product_terms',
+			'edit_terms'   => 'manage_product_terms',
+			'delete_terms' => 'manage_product_terms',
+			'assign_terms' => 'edit_products',
+		),
+	) );
+
+	// Short address: /promotions/ (and /promotions/page/2/) instead of /promotions/promotion/
+	add_rewrite_rule( '^promotions/?$', 'index.php?' . FVS_PROMO_TAX . '=' . FVS_PROMO_TERM, 'top' );
+	add_rewrite_rule( '^promotions/page/([0-9]+)/?$', 'index.php?' . FVS_PROMO_TAX . '=' . FVS_PROMO_TERM . '&paged=$matches[1]', 'top' );
+}, 5 );
+
+/* Create the "Promotion" option and register the new addresses (one time only) */
+add_action( 'init', function () {
+	if ( '1' === get_option( 'fvs_promo_setup' ) ) return;
+	if ( ! term_exists( FVS_PROMO_TERM, FVS_PROMO_TAX ) ) {
+		wp_insert_term( 'Promotion', FVS_PROMO_TAX, array( 'slug' => FVS_PROMO_TERM ) );
+	}
+	flush_rewrite_rules( false );
+	update_option( 'fvs_promo_setup', '1' );
+}, 99 );
+
+function fvs_promo_term() {
+	static $term = null;
+	if ( null === $term ) {
+		$term = get_term_by( 'slug', FVS_PROMO_TERM, FVS_PROMO_TAX );
+	}
+	return $term;
+}
+
+/* Link to the promotions page (always the short /promotions/ address) */
+function fvs_promo_url() {
+	return get_option( 'permalink_structure' )
+		? user_trailingslashit( home_url( 'promotions' ) )
+		: add_query_arg( FVS_PROMO_TAX, FVS_PROMO_TERM, home_url( '/' ) ); // "Plain" permalinks
+}
+add_filter( 'term_link', function ( $url, $term, $taxonomy ) {
+	return ( FVS_PROMO_TAX === $taxonomy && FVS_PROMO_TERM === $term->slug && get_option( 'permalink_structure' ) ) ? fvs_promo_url() : $url;
+}, 10, 3 );
+
+/* Product edit screen: one checkbox */
+function fvs_promo_meta_box( $post ) {
+	$term = fvs_promo_term();
+	if ( ! $term ) {
+		echo '<p>Reload this page to finish setting up Promotions.</p>';
+		return;
+	}
+	$on = has_term( $term->term_id, FVS_PROMO_TAX, $post );
+	// The hidden 0 lets WordPress remove the product from Promotions when the box is unticked
+	echo '<input type="hidden" name="tax_input[' . esc_attr( FVS_PROMO_TAX ) . '][]" value="0">';
+	printf(
+		'<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="tax_input[%s][]" value="%d"%s> <strong>Promotion</strong></label>',
+		esc_attr( FVS_PROMO_TAX ),
+		(int) $term->term_id,
+		checked( $on, true, false )
+	);
+	printf(
+		'<p class="description" style="margin:0">Show this product on the <a href="%s" target="_blank">Promotions page</a>.</p>',
+		esc_url( get_term_link( $term ) )
+	);
+}
+
+/* Main categories (and their parents) that contain promoted products – cached, cleared with the category cache */
+function fvs_promo_category_ids() {
+	static $ids = null;
+	if ( null !== $ids ) return $ids;
+
+	$ids = get_transient( 'fvs_promo_cats' );
+	if ( is_array( $ids ) ) return $ids;
+
+	$ids      = array();
+	$products = get_posts( array(
+		'post_type'      => 'product',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+		'tax_query'      => array(
+			array( 'taxonomy' => FVS_PROMO_TAX, 'field' => 'slug', 'terms' => FVS_PROMO_TERM ),
+			array( 'taxonomy' => 'product_visibility', 'field' => 'name', 'terms' => array( 'exclude-from-catalog' ), 'operator' => 'NOT IN' ),
+		),
+	) );
+	if ( $products ) {
+		foreach ( wp_get_object_terms( $products, 'product_cat', array( 'fields' => 'ids' ) ) as $cat_id ) {
+			$ids[] = (int) $cat_id;
+			foreach ( get_ancestors( $cat_id, 'product_cat', 'taxonomy' ) as $parent ) {
+				$ids[] = (int) $parent;
+			}
+		}
+		$ids = array_values( array_unique( $ids ) );
+	}
+	set_transient( 'fvs_promo_cats', $ids, 12 * HOUR_IN_SECONDS );
+	return $ids;
+}
+
+/* Selected category on the promotions page (?pcat=slug) */
+function fvs_promo_current_cat() {
+	if ( empty( $_GET['pcat'] ) ) return null; // phpcs:ignore WordPress.Security.NonceVerification
+	$term = get_term_by( 'slug', sanitize_title( wp_unslash( $_GET['pcat'] ) ), 'product_cat' ); // phpcs:ignore WordPress.Security.NonceVerification
+	return ( $term && ! is_wp_error( $term ) ) ? $term : null;
+}
+
+/* Category filter: limit the promotions page to promoted products in that category.
+   Done with post__in so the page stays the Promotions archive (title, template, links). */
+add_action( 'pre_get_posts', function ( $q ) {
+	if ( is_admin() || ! $q->is_main_query() || ! $q->is_tax( FVS_PROMO_TAX ) ) return;
+	$cat = fvs_promo_current_cat();
+	if ( ! $cat ) return;
+	$ids = get_posts( array(
+		'post_type'      => 'product',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+		'tax_query'      => array(
+			array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => $cat->term_id, 'include_children' => true ),
+			array( 'taxonomy' => FVS_PROMO_TAX, 'field' => 'slug', 'terms' => FVS_PROMO_TERM ),
+		),
+	) );
+	$q->set( 'post__in', $ids ? $ids : array( 0 ) );
+}, 20 );
+
+/* Promotions page -------------------------------------------------------- */
+function fvs_render_promotion_archive( $show_title ) {
+	$base    = fvs_promo_url();
+	$current = fvs_promo_current_cat();
+	$top     = $current ? fvs_top_ancestor( $current ) : null;
+	$in      = fvs_promo_category_ids();
+	$has     = function ( $term ) use ( $in ) {
+		return in_array( (int) $term->term_id, $in, true );
+	};
+
+	echo '<div class="fvs fvs--promo">';
+
+	/* Main categories: "All" + categories that have promoted products */
+	$cats = array_values( array_filter( fvs_top_categories(), $has ) );
+	echo '<nav class="fvs-maincats" aria-label="Promotion categories"><div class="fvs-maincats__track">';
+	printf(
+		'<a href="%s" class="fvs-maincat%s"%s>All</a>',
+		esc_url( $base ),
+		$top ? '' : ' is-active',
+		$top ? '' : ' aria-current="page"'
+	);
+	foreach ( $cats as $cat ) {
+		$active = $top && $top->term_id === $cat->term_id;
+		printf(
+			'<a href="%s" class="fvs-maincat%s"%s>%s</a>',
+			esc_url( add_query_arg( 'pcat', $cat->slug, $base ) ),
+			$active ? ' is-active' : '',
+			$active ? ' aria-current="page"' : '',
+			esc_html( $cat->name )
+		);
+	}
+	echo '</div></nav>';
+
+	/* Sub-categories of the selected main category (only those with promoted products) */
+	if ( $top ) {
+		$subs = array_values( array_filter( fvs_sub_categories( $top ), $has ) );
+		if ( $subs ) {
+			echo '<div class="fvs-subcats" role="list">';
+			printf(
+				'<a role="listitem" href="%s" class="fvs-subcat%s">All</a>',
+				esc_url( add_query_arg( 'pcat', $top->slug, $base ) ),
+				$current->term_id === $top->term_id ? ' is-active' : ''
+			);
+			foreach ( $subs as $sub ) {
+				$active = $current->term_id === $sub->term_id;
+				printf(
+					'<a role="listitem" href="%s" class="fvs-subcat%s"%s>%s</a>',
+					esc_url( add_query_arg( 'pcat', $sub->slug, $base ) ),
+					$active ? ' is-active' : '',
+					$active ? ' aria-current="page"' : '',
+					esc_html( $sub->name )
+				);
+			}
+			echo '</div>';
+		}
+	}
+
+	fvs_render_results(
+		$show_title ? ( $current ? 'Promotions: ' . $current->name : 'Promotions' ) : '',
+		$current ? 'There are no promotions in this category right now.' : 'There are no promotions right now. Please check back soon.',
+		'Browse all products'
+	);
+
+	echo '</div>';
+}
+
 /* ---------------------------------------------------------------------------
  * Shortcode
  * ------------------------------------------------------------------------ */
@@ -3367,7 +3594,9 @@ function fvs_shop_shortcode_render( $atts ) {
 	ob_start();
 	fvs_print_assets();
 
-	if ( is_shop() && ! is_search() && ! is_product_category() ) {
+	if ( is_tax( FVS_PROMO_TAX ) ) {
+		fvs_render_promotion_archive( 'yes' === $atts['show_title'] );
+	} elseif ( is_shop() && ! is_search() && ! is_product_category() ) {
 		fvs_render_category_grid();
 	} else {
 		fvs_render_archive( 'yes' === $atts['show_title'] );
@@ -3413,8 +3642,6 @@ function fvs_render_catcard( $cat ) {
 
 /* Category / archive page ----------------------------------------------- */
 function fvs_render_archive( $show_title ) {
-	global $wp_query;
-
 	$current = is_product_category() ? get_queried_object() : null;
 	$top     = $current ? fvs_top_ancestor( $current ) : null;
 
@@ -3462,7 +3689,19 @@ function fvs_render_archive( $show_title ) {
 		}
 	}
 
-	/* Heading + result count */
+	fvs_render_results(
+		$show_title && $current ? $current->name : '',
+		'There are no products in this category yet.',
+		'Browse all categories'
+	);
+
+	echo '</div>';
+}
+
+/* Heading + result count + product grid + pagination (category and promotions pages) */
+function fvs_render_results( $title, $empty_text, $empty_button ) {
+	global $wp_query;
+
 	$total    = (int) $wp_query->found_posts;
 	$per_page = (int) $wp_query->get( 'posts_per_page' );
 	$paged    = max( 1, (int) get_query_var( 'paged' ) );
@@ -3470,14 +3709,13 @@ function fvs_render_archive( $show_title ) {
 		$from = ( $paged - 1 ) * $per_page + 1;
 		$to   = min( $total, $paged * $per_page );
 		echo '<div class="fvs-head">';
-		if ( $show_title && $current ) {
-			echo '<h1 class="fvs-head__title">' . esc_html( $current->name ) . '</h1>';
+		if ( '' !== $title ) {
+			echo '<h1 class="fvs-head__title">' . esc_html( $title ) . '</h1>';
 		}
 		echo '<p class="fvs-head__count">' . esc_html( $total > $per_page ? "Showing {$from}–{$to} of {$total} products" : sprintf( _n( '%d product', '%d products', $total, 'woocommerce' ), $total ) ) . '</p>';
 		echo '</div>';
 	}
 
-	/* Product grid */
 	if ( $wp_query->posts ) {
 		echo '<ul class="fvs-grid">';
 		foreach ( $wp_query->posts as $post ) {
@@ -3489,11 +3727,9 @@ function fvs_render_archive( $show_title ) {
 		echo '</ul>';
 		fvs_render_pagination();
 	} else {
-		echo '<div class="fvs-empty"><p>There are no products in this category yet.</p>';
-		echo '<a class="fvs-btn fvs-btn--ghost" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">Browse all categories</a></div>';
+		echo '<div class="fvs-empty"><p>' . esc_html( $empty_text ) . '</p>';
+		echo '<a class="fvs-btn fvs-btn--ghost" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">' . esc_html( $empty_button ) . '</a></div>';
 	}
-
-	echo '</div>';
 }
 
 /* Product card ---------------------------------------------------------- */
