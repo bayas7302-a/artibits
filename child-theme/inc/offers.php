@@ -7,8 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 /* ===========================================================================
  * PERSONAL PROMOTIONAL OFFERS
- * Allocate a code to a customer: Marketing → Coupons → edit coupon →
- * "Usage restriction" → "Allowed emails" (customer's email; *@company.com works too).
+ * Allocate a code to a customer: Marketing → Coupons → edit coupon → "Usage restriction" →
+ * "Allowed customers" (search and pick customers) and/or "Allowed emails"
+ * (any email; *@company.com works too). Selected customers' emails are added to
+ * "Allowed emails" automatically, so WooCommerce's own checks enforce it.
  * - My Account → "My offers": every allocated code with a Copy button + details
  * - Cart + checkout: "View my offers" bar → popup with "Apply now" buttons
  *   (signed out: "Log in to see your promotional offers", returns to the page)
@@ -63,7 +65,8 @@ function soharon_offers_for_user( $user_id = 0 ) {
 	$offers = array();
 	foreach ( $ids as $id ) {
 		$coupon = new WC_Coupon( $id );
-		if ( ! soharon_offer_email_match( $coupon->get_email_restrictions(), $emails ) ) continue;
+		if ( ! in_array( $user_id, soharon_coupon_customer_ids( $coupon ), true )
+			&& ! soharon_offer_email_match( $coupon->get_email_restrictions(), $emails ) ) continue;
 
 		$expires = $coupon->get_date_expires();
 		if ( $expires && $expires->getTimestamp() < time() ) continue;                             // expired
@@ -165,6 +168,112 @@ function soharon_offer_card( $coupon, $mode ) {
 	<?php
 	return ob_get_clean();
 }
+
+/* ===========================================================================
+ * ADMIN: coupon → Usage restriction → "Allowed customers"
+ * ======================================================================== */
+
+/* Customer IDs selected on a coupon (one meta row per customer, so it can be searched) */
+function soharon_coupon_customer_ids( $coupon ) {
+	$ids = array();
+	foreach ( (array) $coupon->get_meta( '_soharon_customer', false ) as $meta ) {
+		$id = (int) ( is_object( $meta ) ? $meta->value : $meta );
+		if ( $id ) $ids[] = $id;
+	}
+	return array_values( array_unique( $ids ) );
+}
+
+add_action( 'woocommerce_coupon_options_usage_restriction', function ( $coupon_id, $coupon = null ) {
+	$coupon = $coupon instanceof WC_Coupon ? $coupon : new WC_Coupon( $coupon_id );
+	?>
+	<div class="options_group">
+		<p class="form-field">
+			<label for="soharon_customers">Allowed customers</label>
+			<select class="wc-customer-search" multiple="multiple" style="width:50%;" id="soharon_customers" name="soharon_customers[]"
+				data-placeholder="Search for a customer…" data-allow_clear="true">
+				<?php foreach ( soharon_coupon_customer_ids( $coupon ) as $uid ) :
+					$user = get_userdata( $uid );
+					if ( ! $user ) continue;
+					$name = trim( $user->first_name . ' ' . $user->last_name );
+					printf(
+						'<option value="%d" selected="selected">%s</option>',
+						(int) $uid,
+						esc_html( sprintf( '%s (#%d – %s)', $name ? $name : $user->display_name, $uid, $user->user_email ) )
+					);
+				endforeach; ?>
+			</select>
+			<?php echo wc_help_tip( 'Only these customers can use this code. Their emails are added to "Allowed emails" automatically, and the code appears in their My Account → My offers.' ); // phpcs:ignore ?>
+		</p>
+	</div>
+	<?php
+}, 5, 2 );
+
+/* Save: store the customers and add their emails to "Allowed emails" */
+add_action( 'woocommerce_coupon_options_save', function ( $post_id, $coupon = null ) {
+	$coupon = $coupon instanceof WC_Coupon ? $coupon : new WC_Coupon( $post_id );
+	// phpcs:ignore WordPress.Security.NonceVerification -- WooCommerce checks its own nonce before this runs
+	$ids = isset( $_POST['soharon_customers'] ) ? array_values( array_unique( array_filter( array_map( 'absint', (array) wp_unslash( $_POST['soharon_customers'] ) ) ) ) ) : array();
+
+	$coupon->delete_meta_data( '_soharon_customer' );
+	foreach ( $ids as $id ) {
+		$coupon->add_meta_data( '_soharon_customer', $id, false );
+	}
+	soharon_coupon_sync_emails( $coupon );
+}, 20, 2 );
+
+/* Allowed emails = emails typed by hand + current emails of the selected customers */
+function soharon_coupon_sync_emails( $coupon ) {
+	$auto_before = array_map( 'strtolower', (array) $coupon->get_meta( '_soharon_auto_emails' ) );
+	$manual      = array();
+	foreach ( $coupon->get_email_restrictions() as $email ) {
+		if ( ! in_array( strtolower( $email ), $auto_before, true ) ) $manual[] = strtolower( $email );
+	}
+	$auto = array();
+	foreach ( soharon_coupon_customer_ids( $coupon ) as $uid ) {
+		foreach ( soharon_offer_user_emails( $uid ) as $email ) $auto[] = $email;
+	}
+	$auto = array_values( array_unique( $auto ) );
+
+	$coupon->set_email_restrictions( array_values( array_unique( array_merge( $manual, $auto ) ) ) );
+	$coupon->update_meta_data( '_soharon_auto_emails', $auto );
+	$coupon->save();
+}
+
+/* A selected customer changed their email → update their coupons */
+function soharon_coupon_resync_customer( $user_id ) {
+	$ids = get_posts( array(
+		'post_type'      => 'shop_coupon',
+		'post_status'    => 'any',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+		'meta_query'     => array( array( 'key' => '_soharon_customer', 'value' => (string) (int) $user_id ) ),
+	) );
+	foreach ( $ids as $id ) {
+		soharon_coupon_sync_emails( new WC_Coupon( $id ) );
+	}
+}
+add_action( 'profile_update', 'soharon_coupon_resync_customer' );                  // account email (admin or customer)
+add_action( 'woocommerce_customer_save_address', 'soharon_coupon_resync_customer' ); // billing email (My Account → Addresses)
+
+/* Coupons list: show the selected customers under the code */
+add_filter( 'manage_edit-shop_coupon_columns', function ( $cols ) {
+	$out = array();
+	foreach ( $cols as $k => $v ) {
+		$out[ $k ] = $v;
+		if ( 'type' === $k ) $out['soharon_customers'] = 'Customers';
+	}
+	return isset( $out['soharon_customers'] ) ? $out : $out + array( 'soharon_customers' => 'Customers' );
+}, 20 );
+add_action( 'manage_shop_coupon_posts_custom_column', function ( $col, $post_id ) {
+	if ( 'soharon_customers' !== $col ) return;
+	$names = array();
+	foreach ( soharon_coupon_customer_ids( new WC_Coupon( $post_id ) ) as $uid ) {
+		$u = get_userdata( $uid );
+		if ( $u ) $names[] = esc_html( trim( $u->first_name . ' ' . $u->last_name ) ?: $u->display_name );
+	}
+	echo $names ? implode( ', ', $names ) : '<span aria-hidden="true">–</span>'; // phpcs:ignore
+}, 10, 2 );
 
 /* ----- Cart / checkout bar ----- */
 function soharon_offers_login_url( $back ) {
