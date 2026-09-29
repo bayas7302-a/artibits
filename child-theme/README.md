@@ -13,6 +13,7 @@ hello-elementor-child/
     ├── cart.php             ← [soharon_custom_cart]
     ├── checkout-account.php ← [soharon_checkout], thank-you page, [soharon_my_account]
     ├── order-tracking.php   ← WooCommerce → Order Tracking, courier box, Track order tab, [soharon_track_order]
+    ├── offers.php           ← personal promo codes: My Account → My offers, “View my offers” on cart + checkout
     ├── product-links.php    ← Product URL / Data Sheet fields
     ├── header.php           ← [fanvil_site_header]
     ├── site-templates.php   ← header/footer/templates without Elementor Pro, sticky footer

@@ -140,6 +140,13 @@ function soharon_get_cart_table_html() {
                 <span>Subtotal</span>
                 <span><?php echo wc_price( WC()->cart->get_subtotal() ); ?></span>
             </div>
+            <?php foreach ( WC()->cart->get_coupons() as $code => $coupon ) : ?>
+                <div class="soharon-summary-line soharon-discount-line">
+                    <span>Discount <strong class="soharon-coupon-code"><?php echo esc_html( strtoupper( $code ) ); ?></strong>
+                        <button type="button" class="soharon-coupon-remove" data-code="<?php echo esc_attr( $code ); ?>" aria-label="<?php echo esc_attr( sprintf( 'Remove code %s', strtoupper( $code ) ) ); ?>">&times;</button></span>
+                    <span>&minus;<?php echo wc_price( WC()->cart->get_coupon_discount_amount( $code, WC()->cart->display_cart_ex_tax ) ); ?></span>
+                </div>
+            <?php endforeach; ?>
             <div class="soharon-summary-line">
                 <span>VAT</span>
                 <span><?php echo wc_price( WC()->cart->get_total_tax() ); ?></span>
@@ -148,6 +155,7 @@ function soharon_get_cart_table_html() {
                 <span>Total</span>
                 <span><?php echo wc_price( WC()->cart->get_total( 'edit' ) ); ?></span>
             </div>
+            <?php if ( function_exists( 'soharon_offers_bar' ) ) echo soharon_offers_bar( wc_get_cart_url() ); // phpcs:ignore ?>
             <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>" class="soharon-checkout-btn">Check out</a>
         </div>
     </div>
@@ -194,6 +202,16 @@ function soharon_ajax_remove_item() {
 /**
  * 6. AJAX: clear cart
  */
+add_action( 'wp_ajax_soharon_remove_coupon', 'soharon_ajax_remove_coupon' );
+add_action( 'wp_ajax_nopriv_soharon_remove_coupon', 'soharon_ajax_remove_coupon' );
+function soharon_ajax_remove_coupon() {
+    check_ajax_referer( 'soharon_cart_nonce', 'nonce' );
+    WC()->cart->remove_coupon( wc_format_coupon_code( wp_unslash( $_POST['code'] ?? '' ) ) );
+    WC()->cart->calculate_totals();
+    wc_clear_notices();
+    wp_send_json_success( array( 'html' => soharon_get_cart_table_html() ) );
+}
+
 add_action( 'wp_ajax_soharon_clear_cart', 'soharon_ajax_clear_cart' );
 add_action( 'wp_ajax_nopriv_soharon_clear_cart', 'soharon_ajax_clear_cart' );
 function soharon_ajax_clear_cart() {
@@ -317,6 +335,10 @@ function soharon_custom_cart_css() {
 }
 .soharon-summary-line{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:15px; }
 .soharon-summary-line span:first-child{ color:#555; }
+.soharon-discount-line span:last-child{ color:#17804A; font-weight:600; }
+.soharon-coupon-code{ margin-left:4px; padding:2px 8px; border:1px dashed #BFC3C8; border-radius:6px; font-size:12px; font-weight:600; letter-spacing:.04em; color:#1A1A1A; }
+.soharon-coupon-remove{ margin-left:6px; padding:0 6px !important; border:0 !important; background:none !important; color:#8A8A8A !important; font-size:18px; line-height:1; cursor:pointer; box-shadow:none !important; }
+.soharon-coupon-remove:hover{ color:{RED} !important; }
 .soharon-total-line{ margin-top:8px; padding-top:16px; border-top:1px solid var(--s-border); font-size:18px; font-weight:700; }
 .soharon-total-line span:first-child{ color:var(--s-text); }
 
@@ -386,6 +408,10 @@ jQuery(function($){
 
     $wrap.on('click', '#soharon-clear-cart', function(){
         if (confirm('Remove all items from your cart?')) ajaxCall('soharon_clear_cart', {});
+    });
+
+    $wrap.on('click', '.soharon-coupon-remove', function(){
+        ajaxCall('soharon_remove_coupon', { code: $(this).data('code') });
     });
 
     $wrap.on('click', '#soharon-refresh-cart', function(){

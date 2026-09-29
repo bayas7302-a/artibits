@@ -670,6 +670,13 @@ function soharon_render_auth_forms() {
                     </div>
 
                     <?php wp_nonce_field( 'woocommerce-login', 'woocommerce-login-nonce' ); ?>
+                    <?php
+                    // Back to the page that sent them here (e.g. "Log in to see your offers" on cart/checkout)
+                    $soharon_back = isset( $_GET['redirect_to'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ), '' ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+                    if ( $soharon_back ) {
+                        echo '<input type="hidden" name="redirect" value="' . esc_url( $soharon_back ) . '">';
+                    }
+                    ?>
                     <button type="submit" class="woocommerce-button button woocommerce-form-login__submit" name="login" value="Log in">Sign in</button>
 
                     <?php do_action( 'woocommerce_login_form_end' ); ?>
