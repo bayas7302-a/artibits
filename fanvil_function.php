@@ -3279,8 +3279,12 @@ function fvt_footer_links() {
 }
 
 function fvt_render_footer() {
-	$logo = wp_get_attachment_image_url( FVT_FOOTER_LOGO_ID, 'full' );
-	$logo = $logo ? $logo : FVT_FOOTER_LOGO;
+	$name = get_bloginfo( 'name' );
+	// Media Library image (sharp on every screen via srcset), or the file URL if it was removed
+	$logo = wp_get_attachment_image( FVT_FOOTER_LOGO_ID, 'full', false, array( 'alt' => $name, 'loading' => 'lazy' ) );
+	if ( ! $logo ) {
+		$logo = '<img src="' . esc_url( FVT_FOOTER_LOGO ) . '" width="1381" height="281" alt="' . esc_attr( $name ) . '" loading="lazy">';
+	}
 	?>
 <footer id="site-footer" class="fvt-footer">
 	<div class="fvt-footer__inner">
@@ -3289,15 +3293,15 @@ function fvt_render_footer() {
 				<a href="<?php echo esc_url( $link[1] ); ?>"><?php echo esc_html( $link[0] ); ?></a>
 			<?php endforeach; ?>
 		</nav>
-		<a class="fvt-footer__logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?> – home">
-			<img src="<?php echo esc_url( $logo ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" loading="lazy">
+		<a class="fvt-footer__logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="<?php echo esc_attr( $name ); ?> – home">
+			<?php echo $logo; // phpcs:ignore ?>
 		</a>
 		<p class="fvt-footer__copy">&copy; <?php echo esc_html( wp_date( 'Y' ) ); ?> Fanvil Store | All Rights Reserved</p>
 	</div>
 </footer>
 <style id="fvt-footer-css">
 .fvt-footer{background:#CF0912;color:#fff;font-family:'Poppins',sans-serif;font-size:14px;line-height:1.5}
-.fvt-footer__inner{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1300px;margin:0 auto;padding:20px 10px}
+.fvt-footer__inner{display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:1300px;margin:0 auto;padding:20px 10px}
 .fvt-footer__links,.fvt-footer__copy{flex:0 0 30%;margin:0}
 .fvt-footer__links{display:flex;flex-wrap:wrap;gap:4px 13px}
 .fvt-footer__copy{text-align:right}
