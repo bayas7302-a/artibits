@@ -410,6 +410,13 @@ function soharon_render_thankyou() {
     <?php
 }
 
+/* "Payment" heading above the payment methods */
+add_action( 'woocommerce_review_order_before_payment', function () {
+    if ( WC()->cart && WC()->cart->needs_payment() ) {
+        echo '<h3 class="soharon-pay-title">Payment</h3>';
+    }
+} );
+
 /* Checkout + thank-you layout */
 function soharon_checkout_css() {
     $css = <<<'CSS'
@@ -456,16 +463,41 @@ function soharon_checkout_css() {
 {S} #payment{ margin-top:8px; padding:0; background:transparent; border-radius:0; }
 {S} #payment ul.payment_methods{ list-style:none; margin:0 0 16px; padding:0; border:0; }
 {S} #payment ul.payment_methods li{
-    margin:0 0 10px; padding:14px 16px; border:1px solid var(--s-border);
-    border-radius:14px; background:var(--s-bg); font-size:14px; line-height:1.5;
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    margin:0 0 10px; padding:16px 18px; border:1.5px solid var(--s-border);
+    border-radius:14px; background:#fff; font-size:14px; line-height:1.5; transition:border-color .2s;
 }
-{S} #payment ul.payment_methods li:has(input:checked){ border-color:var(--s-red); background:#fff; }
-{S} #payment ul.payment_methods li > label{ display:inline; font-weight:600; cursor:pointer; margin-left:8px; }
-{S} #payment ul.payment_methods li img{ max-height:24px; vertical-align:middle; margin:0 4px; }
+{S} #payment ul.payment_methods li:hover{ border-color:#D5D8DC; }
+{S} #payment ul.payment_methods li:has(> input:checked){ border-color:var(--s-red); box-shadow:0 0 0 3px rgba(219,20,29,.06); }
+{S} #payment ul.payment_methods li > input.input-radio{ flex:0 0 auto; width:18px; height:18px; margin:0; cursor:pointer; }
+{S} #payment ul.payment_methods li > label{ flex:1 1 auto; display:flex; align-items:center; gap:8px; margin:0; font-weight:600; color:var(--s-text); cursor:pointer; }
+{S} #payment ul.payment_methods li img{ max-height:24px; vertical-align:middle; margin:0 0 0 4px; }
 {S} #payment ul.payment_methods li.woocommerce-info{ padding-left:48px; border:0; border-left:4px solid var(--s-red); background:var(--s-red-soft); }
-{S} #payment div.payment_box{ margin:10px 0 0; padding:12px 14px; border-radius:12px; background:var(--s-bg); font-size:13px; color:#555; }
+
+/* Details of the selected method (e.g. Stripe card form): same box, below a thin line */
+{S} #payment div.payment_box{
+    flex:0 0 100%; margin:4px 0 0; padding:16px 0 0; border-top:1px solid var(--s-border);
+    border-radius:0; background:transparent; font-size:13px; color:#555;
+}
 {S} #payment div.payment_box::before{ display:none; }
 {S} #payment div.payment_box p:last-child{ margin-bottom:0; }
+{S} #payment div.payment_box fieldset,{S} #payment .wc-payment-form{ min-width:0; margin:0; padding:0; border:0; background:transparent; }
+{S} #payment .wc-stripe-upe-element{ margin:0; }
+{S} #payment #wc-stripe-upe-errors:not(:empty){ margin-top:10px; color:var(--s-red); font-size:13px; }
+
+/* Stripe test-mode note */
+{S} #payment .wc-stripe-payment-method-instruction{
+    margin:0 0 14px; padding:10px 12px; border-radius:10px; background:#FFF7E6; color:#7A5300; font-size:12.5px; line-height:1.6;
+}
+{S} #payment .wc-stripe-payment-method-instruction a{ color:#7A5300; text-decoration:underline; }
+{S} #payment .wc-stripe-copy-test-number{
+    display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none;
+    color:inherit; font:inherit; font-weight:600; cursor:pointer;
+}
+{S} #payment .wc-stripe-copy-test-number i{ display:none; }
+
+/* "Payment" heading above the methods */
+{S} .soharon-pay-title{ margin:26px 0 12px; font-size:16px; font-weight:600; color:var(--s-text); }
 {S} #payment div.form-row{ margin:0; padding:0; }
 {S} .woocommerce-privacy-policy-text p,
 {S} .woocommerce-terms-and-conditions-checkbox-text{ font-size:12px; line-height:1.6; color:var(--s-muted); }
