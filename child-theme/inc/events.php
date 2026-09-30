@@ -257,7 +257,7 @@ function fve_render_events( $atts ) {
 
 			<template id="fve-<?php echo esc_attr( $slug ); ?>">
 				<?php if ( $img ) : ?>
-					<div class="fve-pop__media"><?php echo wp_get_attachment_image( $img, 'large', false, array( 'alt' => $title ) ); ?></div>
+					<div class="fve-pop__media" style="--fve-bg:url('<?php echo esc_url( wp_get_attachment_image_url( $img, 'medium' ) ); ?>')"><?php echo wp_get_attachment_image( $img, 'large', false, array( 'alt' => $title ) ); ?></div>
 				<?php endif; ?>
 				<div class="fve-pop__body">
 					<h2 class="fve-pop__title"><?php echo esc_html( $title ); ?></h2>
@@ -267,7 +267,7 @@ function fve_render_events( $atts ) {
 						<?php if ( $location ) : ?><li><span>Location</span><strong><?php echo esc_html( $location ); ?></strong></li><?php endif; ?>
 					</ul>
 					<?php if ( trim( $content ) ) : ?>
-						<div class="fve-pop__desc"><?php echo wp_kses_post( wpautop( do_shortcode( $content ) ) ); ?></div>
+						<div class="fve-pop__desc"><?php echo wp_kses_post( wpautop( make_clickable( do_shortcode( $content ) ) ) ); // web addresses become links ?></div>
 					<?php endif; ?>
 				</div>
 			</template>
@@ -348,10 +348,11 @@ function fve_print_assets() {
 /* Popup */
 .fve-pop{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);margin:auto;padding:0;border:0;border-radius:20px;background:#fff;color:#1A1D21;font-family:'Poppins',sans-serif;box-shadow:0 30px 80px rgba(0,0,0,.25);overflow:auto}
 .fve-pop::backdrop{background:rgba(17,17,17,.6)}
-.fve-pop__inner{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr)}
-.fve-pop__media{position:relative;aspect-ratio:4/5;min-height:420px;background:#E6E8EB;overflow:hidden}
-.fve-pop__media img{position:absolute;inset:0;display:block;width:100% !important;height:100% !important;max-width:none;margin:0;object-fit:cover;object-position:center}
-.fve-pop__body{padding:36px 32px 32px}
+.fve-pop__inner{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);height:min(calc(100vh - 48px),640px)}
+.fve-pop__media{position:relative;height:100%;min-height:0;background:#1A1D21;overflow:hidden}
+.fve-pop__media::before{content:"";position:absolute;inset:-40px;background:var(--fve-bg) center/cover no-repeat;filter:blur(28px) brightness(.75);transform:scale(1.1)}
+.fve-pop__media img{position:relative;z-index:1;display:block;width:100% !important;height:100% !important;max-width:none;margin:0;object-fit:contain;object-position:center}
+.fve-pop__body{min-height:0;padding:36px 32px 32px;overflow-y:auto;overscroll-behavior:contain}
 .fve-pop .fve-pop__title{margin:0 0 18px;padding-right:32px;font-size:20px;font-weight:700;line-height:1.25;color:#1A1D21;text-transform:uppercase}
 .fve-pop .fve-pop__meta{margin:0 0 20px;padding:0;list-style:none;border-top:1px solid #ECECEC}
 .fve-pop__meta li{display:flex;gap:16px;margin:0;padding:10px 0;border-bottom:1px solid #ECECEC;font-size:14px}
@@ -375,7 +376,9 @@ body.fve-lock{overflow:hidden}
 	.fve-card__media{aspect-ratio:4/5}
 	.fve-pop{width:calc(100vw - 20px);max-height:calc(100vh - 20px)}
 	.fve-pop__inner{grid-template-columns:1fr}
-	.fve-pop__media{aspect-ratio:auto;min-height:0;height:min(62vh,440px)}
+	.fve-pop__inner{height:auto}
+	.fve-pop__media{height:min(55vh,420px)}
+	.fve-pop__body{overflow:visible}
 	.fve-pop__body{padding:22px 20px 24px}
 	.fve-pop .fve-pop__title{font-size:20px}
 }
