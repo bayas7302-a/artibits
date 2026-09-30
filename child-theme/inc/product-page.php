@@ -231,6 +231,8 @@ function fvp_related_ids( $product, $current, $top, $limit = 4 ) {
 				'terms'    => array( 'exclude-from-catalog' ),
 				'operator' => 'NOT IN',
 			),
+			// promoted product → other promotions; normal product → no promotions
+			fvs_promo_clause( has_term( FVS_PROMO_TERM, FVS_PROMO_TAX, $product->get_id() ) ? 'IN' : 'NOT IN' ),
 		),
 	) ) );
 }
