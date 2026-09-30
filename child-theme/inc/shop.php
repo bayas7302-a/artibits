@@ -631,6 +631,12 @@ function fvs_show_excl_vat() {
 	return ! ( wc_tax_enabled() && 'incl' === get_option( 'woocommerce_tax_display_shop' ) );
 }
 
+/* "Ready to ship in 24h" under "In stock" on product cards and the product page.
+   Hidden for now – change false to true to show it again. */
+if ( ! defined( 'FVS_SHOW_SHIP_NOTE' ) ) {
+	define( 'FVS_SHOW_SHIP_NOTE', false );
+}
+
 /* Stock + shipping line */
 function fvs_stock_html( $product ) {
 	$status = $product->get_stock_status();
@@ -641,7 +647,7 @@ function fvs_stock_html( $product ) {
 	);
 	$html  = '<div class="fvs-status">';
 	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
-	if ( 'instock' === $status ) {
+	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status ) {
 		$html .= '<p class="fvs-ship"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg><span>Ready to ship in 24h</span></p>';
 	}
 	return $html . '</div>';
