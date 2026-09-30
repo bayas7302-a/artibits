@@ -410,12 +410,23 @@ function soharon_render_thankyou() {
     <?php
 }
 
-/* "Payment" heading above the payment methods */
-add_action( 'woocommerce_review_order_before_payment', function () {
+/* Payment options, terms and "Place order" in the LEFT card (under Additional information)
+   instead of under the order summary. Still inside the checkout form, and WooCommerce keeps
+   refreshing it in place (it updates ".woocommerce-checkout-payment" wherever it is). */
+add_action( 'wp', function () {
+    if ( function_exists( 'is_checkout' ) && is_checkout() && ! is_wc_endpoint_url( 'order-pay' ) ) {
+        remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
+        add_action( 'woocommerce_checkout_shipping', 'soharon_checkout_payment_section', 99 );
+    }
+} );
+function soharon_checkout_payment_section() {
+    echo '<div class="soharon-pay-section">';
     if ( WC()->cart && WC()->cart->needs_payment() ) {
         echo '<h3 class="soharon-pay-title">Payment</h3>';
     }
-} );
+    woocommerce_checkout_payment();
+    echo '</div>';
+}
 
 /* Checkout + thank-you layout */
 function soharon_checkout_css() {
@@ -497,7 +508,9 @@ function soharon_checkout_css() {
 {S} #payment .wc-stripe-copy-test-number i{ display:none; }
 
 /* "Payment" heading above the methods */
-{S} .soharon-pay-title{ margin:26px 0 12px; font-size:16px; font-weight:600; color:var(--s-text); }
+{S} .soharon-pay-section{ margin-top:24px; padding-top:24px; border-top:1px solid var(--s-border); }
+{S} .soharon-pay-title{ margin:0 0 14px; font-size:18px; font-weight:600; color:var(--s-text); }
+{S} .soharon-pay-section #payment{ margin-top:0; }
 {S} #payment div.form-row{ margin:0; padding:0; }
 {S} .woocommerce-privacy-policy-text p,
 {S} .woocommerce-terms-and-conditions-checkbox-text{ font-size:12px; line-height:1.6; color:var(--s-muted); }
@@ -595,13 +608,21 @@ function soharon_checkout_css() {
 {S} #payment .woocommerce-info::before,
 {S} #payment ul.payment_methods li.woocommerce-info::before{ position:static; width:22px; height:22px; color:var(--s-muted); }
 
+/* Desktop: "Your order" stays in view while the customer scrolls the form
+   (heading + summary are two grid items, so both stick; the heading has a fixed height) */
+@media (min-width:901px){
+    {S} form.checkout{ --s-stick:110px; }
+    {S} #order_review_heading{ position:sticky; top:var(--s-stick); z-index:2; height:64px; box-sizing:border-box; }
+    {S} #order_review{ position:sticky; top:calc(var(--s-stick) + 64px); z-index:1; align-self:start; }
+}
+
 /* ---------- Mobile ---------- */
 @media (max-width:900px){
     {S} form.checkout{
         grid-template-columns:1fr; grid-template-rows:auto;
-        grid-template-areas:"notice" "details" "heading" "review";
+        grid-template-areas:"notice" "heading" "review" "details";
     }
-    {S} #customer_details{ margin-bottom:20px; }
+    {S} #order_review{ margin-bottom:20px; }
     {S} .soharon-ty-grid{ grid-template-columns:1fr; }
 }
 @media (max-width:600px){
