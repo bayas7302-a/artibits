@@ -468,6 +468,12 @@ function fvs_render_category_grid() {
 	$cats = fvs_top_categories();
 	echo '<div class="fvs fvs--cats">';
 
+	/* Heading – shop page only (this grid is only shown on the main shop page) */
+	echo '<header class="fvs-cats-head">';
+	echo '<h1 class="fvs-cats-head__title">Our <strong>Categories</strong></h1>';
+	echo '<p class="fvs-cats-head__text">Find the right Fanvil solution.</p>';
+	echo '</header>';
+
 	if ( ! $cats ) {
 		echo '<p class="fvs-empty">No products are available yet.</p></div>';
 		return;
@@ -796,6 +802,12 @@ function fvs_print_assets() {
 .fvs-head__count{margin:0;font-size:14px;color:var(--fvs-muted)}
 
 /* Grids */
+.fvs-cats-head{margin:8px 0 32px}
+.fvs .fvs-cats-head__title{margin:0;font-size:44px;font-weight:400;line-height:1.15;color:var(--fvs-ink);letter-spacing:-.01em;text-transform:none}
+.fvs .fvs-cats-head__title strong{font-weight:700;color:var(--fvs-red)}
+.fvs .fvs-cats-head__text{margin:12px 0 0;font-size:16px;line-height:1.5;color:#4B5563}
+@media (max-width:820px){.fvs .fvs-cats-head__title{font-size:34px}.fvs-cats-head{margin-bottom:24px}}
+@media (max-width:560px){.fvs .fvs-cats-head__title{font-size:28px}.fvs .fvs-cats-head__text{font-size:15px}}
 .fvs-grid,.fvs-catgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
 @media (max-width:1100px){.fvs-grid,.fvs-catgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:820px){.fvs-grid,.fvs-catgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}}
