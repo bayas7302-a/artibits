@@ -68,7 +68,7 @@ function fvs_sub_categories( $parent ) {
 function fvs_cat_info( $term ) {
 	global $fvs_cat_cache;
 	if ( ! is_array( $fvs_cat_cache ) ) {
-		$fvs_cat_cache = get_transient( 'fvs_cat_info' );
+		$fvs_cat_cache = get_transient( 'fvs_cat_info_v2' );
 		if ( ! is_array( $fvs_cat_cache ) ) {
 			$fvs_cat_cache = array();
 		}
@@ -83,12 +83,15 @@ function fvs_cat_info( $term ) {
 		'fields'         => 'ids',
 		'orderby'        => 'menu_order title',
 		'order'          => 'ASC',
-		'tax_query'      => array( array(
-			'taxonomy'         => 'product_cat',
-			'field'            => 'term_id',
-			'terms'            => $term->term_id,
-			'include_children' => true,
-		) ),
+		'tax_query'      => array(
+			array(
+				'taxonomy'         => 'product_cat',
+				'field'            => 'term_id',
+				'terms'            => $term->term_id,
+				'include_children' => true,
+			),
+			fvs_promo_clause( 'NOT IN' ), // promoted products only count on the Promotions page
+		),
 	) );
 	$fvs_cat_cache[ $term->term_id ] = array(
 		'count' => (int) $q->found_posts,
@@ -104,7 +107,7 @@ function fvs_cat_info( $term ) {
 function fvs_save_cat_cache() {
 	global $fvs_cat_cache;
 	if ( is_array( $fvs_cat_cache ) ) {
-		set_transient( 'fvs_cat_info', $fvs_cat_cache, 12 * HOUR_IN_SECONDS );
+		set_transient( 'fvs_cat_info_v2', $fvs_cat_cache, 12 * HOUR_IN_SECONDS );
 	}
 }
 
@@ -114,6 +117,7 @@ function fvs_clear_cat_cache() {
 	$fvs_cat_cache = null;
 	remove_action( 'shutdown', 'fvs_save_cat_cache' );
 	delete_transient( 'fvs_cat_info' );
+	delete_transient( 'fvs_cat_info_v2' );
 	delete_transient( 'fvs_promo_cats' );
 }
 foreach ( array( 'woocommerce_update_product', 'woocommerce_new_product', 'created_product_cat', 'edited_product_cat', 'delete_product_cat' ) as $fvs_hook ) {
@@ -221,6 +225,40 @@ add_action( 'init', function () {
 	update_option( 'fvs_promo_setup', '1' );
 }, 99 );
 
+/* tax_query clause: 'NOT IN' = hide promoted products, 'IN' = only promoted products */
+function fvs_promo_clause( $operator = 'NOT IN' ) {
+	return array(
+		'taxonomy' => FVS_PROMO_TAX,
+		'field'    => 'slug',
+		'terms'    => array( FVS_PROMO_TERM ),
+		'operator' => $operator,
+	);
+}
+
+/* Promoted products are shown ONLY on the Promotions page (and its category tabs):
+   hidden from the shop, categories, sub-categories, tags and search results. */
+add_action( 'pre_get_posts', function ( $q ) {
+	if ( is_admin() || ! $q->is_main_query() || $q->is_tax( FVS_PROMO_TAX ) ) return;
+
+	$product_taxes = array_diff( get_object_taxonomies( 'product' ), array( FVS_PROMO_TAX ) );
+	$post_type     = (array) $q->get( 'post_type' );
+	$is_listing    = $q->is_post_type_archive( 'product' )
+		|| ( $product_taxes && $q->is_tax( $product_taxes ) )
+		|| ( $q->is_search() && ( ! array_filter( $post_type ) || in_array( 'product', $post_type, true ) ) );
+	if ( ! $is_listing ) return;
+
+	$tax_query   = (array) $q->get( 'tax_query' );
+	$tax_query[] = fvs_promo_clause( 'NOT IN' );
+	$q->set( 'tax_query', $tax_query );
+}, 25 );
+
+/* Same for WooCommerce's own [products] shortcodes and blocks */
+add_filter( 'woocommerce_shortcode_products_query', function ( $args ) {
+	$args['tax_query']   = isset( $args['tax_query'] ) ? (array) $args['tax_query'] : array();
+	$args['tax_query'][] = fvs_promo_clause( 'NOT IN' );
+	return $args;
+} );
+
 function fvs_promo_term() {
 	static $term = null;
 	if ( null === $term ) {
@@ -321,20 +359,33 @@ add_action( 'pre_get_posts', function ( $q ) {
 	$q->set( 'post__in', $ids ? $ids : array( 0 ) );
 }, 20 );
 
+/* Categories under $parent (0 = main) that contain promoted products */
+function fvs_promo_categories( $parent, $in ) {
+	$terms = get_terms( array(
+		'taxonomy'   => 'product_cat',
+		'parent'     => (int) $parent,
+		'hide_empty' => false,
+		'exclude'    => array( (int) get_option( 'default_product_cat' ) ),
+		'orderby'    => 'menu_order',
+		'order'      => 'ASC',
+	) );
+	if ( is_wp_error( $terms ) ) return array();
+	return array_values( array_filter( $terms, function ( $t ) use ( $in ) {
+		return in_array( (int) $t->term_id, $in, true );
+	} ) );
+}
+
 /* Promotions page -------------------------------------------------------- */
 function fvs_render_promotion_archive( $show_title ) {
 	$base    = fvs_promo_url();
 	$current = fvs_promo_current_cat();
 	$top     = $current ? fvs_top_ancestor( $current ) : null;
 	$in      = fvs_promo_category_ids();
-	$has     = function ( $term ) use ( $in ) {
-		return in_array( (int) $term->term_id, $in, true );
-	};
 
 	echo '<div class="fvs fvs--promo">';
 
 	/* Main categories: "All" + categories that have promoted products */
-	$cats = array_values( array_filter( fvs_top_categories(), $has ) );
+	$cats = fvs_promo_categories( 0, $in );
 	echo '<nav class="fvs-maincats" aria-label="Promotion categories"><div class="fvs-maincats__track">';
 	printf(
 		'<a href="%s" class="fvs-maincat%s"%s>All</a>',
@@ -356,7 +407,7 @@ function fvs_render_promotion_archive( $show_title ) {
 
 	/* Sub-categories of the selected main category (only those with promoted products) */
 	if ( $top ) {
-		$subs = array_values( array_filter( fvs_sub_categories( $top ), $has ) );
+		$subs = fvs_promo_categories( $top->term_id, $in );
 		if ( $subs ) {
 			echo '<div class="fvs-subcats" role="list">';
 			printf(
@@ -416,6 +467,12 @@ function fvs_shop_shortcode_render( $atts ) {
 function fvs_render_category_grid() {
 	$cats = fvs_top_categories();
 	echo '<div class="fvs fvs--cats">';
+
+	/* Heading – shop page only (this grid is only shown on the main shop page) */
+	echo '<header class="fvs-cats-head">';
+	echo '<h1 class="fvs-cats-head__title">Our <strong>Categories</strong></h1>';
+	echo '<p class="fvs-cats-head__text">Find the right Fanvil solution.</p>';
+	echo '</header>';
 
 	if ( ! $cats ) {
 		echo '<p class="fvs-empty">No products are available yet.</p></div>';
@@ -631,6 +688,12 @@ function fvs_show_excl_vat() {
 	return ! ( wc_tax_enabled() && 'incl' === get_option( 'woocommerce_tax_display_shop' ) );
 }
 
+/* "Ready to ship in 24h" under "In stock" on product cards and the product page.
+   Hidden for now – change false to true to show it again. */
+if ( ! defined( 'FVS_SHOW_SHIP_NOTE' ) ) {
+	define( 'FVS_SHOW_SHIP_NOTE', false );
+}
+
 /* Stock + shipping line */
 function fvs_stock_html( $product ) {
 	$status = $product->get_stock_status();
@@ -641,7 +704,7 @@ function fvs_stock_html( $product ) {
 	);
 	$html  = '<div class="fvs-status">';
 	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
-	if ( 'instock' === $status ) {
+	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status ) {
 		$html .= '<p class="fvs-ship"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg><span>Ready to ship in 24h</span></p>';
 	}
 	return $html . '</div>';
@@ -739,6 +802,12 @@ function fvs_print_assets() {
 .fvs-head__count{margin:0;font-size:14px;color:var(--fvs-muted)}
 
 /* Grids */
+.fvs-cats-head{margin:8px 0 32px}
+.fvs .fvs-cats-head__title{margin:0;font-size:44px;font-weight:400;line-height:1.15;color:var(--fvs-ink);letter-spacing:-.01em;text-transform:none}
+.fvs .fvs-cats-head__title strong{font-weight:700;color:var(--fvs-red)}
+.fvs .fvs-cats-head__text{margin:12px 0 0;font-size:16px;line-height:1.5;color:#4B5563}
+@media (max-width:820px){.fvs .fvs-cats-head__title{font-size:34px}.fvs-cats-head{margin-bottom:24px}}
+@media (max-width:560px){.fvs .fvs-cats-head__title{font-size:28px}.fvs .fvs-cats-head__text{font-size:15px}}
 .fvs-grid,.fvs-catgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
 @media (max-width:1100px){.fvs-grid,.fvs-catgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:820px){.fvs-grid,.fvs-catgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}}
