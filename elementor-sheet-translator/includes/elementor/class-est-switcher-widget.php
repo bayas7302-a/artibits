@@ -15,6 +15,8 @@ use Elementor\Widget_Base;
 
 class EST_Switcher_Widget extends Widget_Base {
 
+	use EST_Button_Style;
+
 	public function get_name() {
 		return 'est-language-switcher';
 	}
@@ -236,6 +238,8 @@ class EST_Switcher_Widget extends Widget_Base {
 		);
 
 		$this->end_controls_section();
+
+		$this->register_button_style_section();
 
 		/* Style: dropdown menu */
 		$this->start_controls_section(

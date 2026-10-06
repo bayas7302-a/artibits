@@ -15,6 +15,8 @@ use Elementor\Widget_Base;
 
 class EST_Compact_Switcher_Widget extends Widget_Base {
 
+	use EST_Button_Style;
+
 	public function get_name() {
 		return 'est-language-buttons';
 	}
@@ -136,7 +138,7 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 		$this->start_controls_section(
 			'section_style_box',
 			array(
-				'label' => __( 'Buttons', 'est' ),
+				'label' => __( 'Typography & spacing', 'est' ),
 				'tab'   => Controls_Manager::TAB_STYLE,
 			)
 		);
@@ -149,15 +151,6 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 			)
 		);
 
-		$this->add_responsive_control(
-			'padding',
-			array(
-				'label'      => __( 'Padding', 'est' ),
-				'type'       => Controls_Manager::DIMENSIONS,
-				'size_units' => array( 'px', 'em' ),
-				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-pad: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ),
-			)
-		);
 
 		$this->add_responsive_control(
 			'gap',
@@ -171,62 +164,23 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 			)
 		);
 
-		$this->add_control(
-			'border_width',
-			array(
-				'label'      => __( 'Border width', 'est' ),
-				'type'       => Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array( 'px' => array( 'min' => 0, 'max' => 6 ) ),
-				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-bw: {{SIZE}}{{UNIT}};' ),
-			)
-		);
 
-		$this->add_control(
-			'radius',
-			array(
-				'label'      => __( 'Border radius', 'est' ),
-				'type'       => Controls_Manager::SLIDER,
-				'size_units' => array( 'px' ),
-				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40 ) ),
-				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-radius: {{SIZE}}{{UNIT}};' ),
-			)
-		);
 
 		$this->end_controls_section();
 
-		/* Colours */
+		$this->register_button_style_section();
+
+		/* Dropdown menu colours */
 		$this->start_controls_section(
 			'section_style_colors',
 			array(
-				'label' => __( 'Colors', 'est' ),
-				'tab'   => Controls_Manager::TAB_STYLE,
+				'label'     => __( 'Dropdown menu', 'est' ),
+				'tab'       => Controls_Manager::TAB_STYLE,
+				'condition' => array( 'layout' => 'dropdown' ),
 			)
 		);
 
-		$this->start_controls_tabs( 'color_tabs' );
 
-		$this->start_controls_tab( 'tab_normal', array( 'label' => __( 'Normal', 'est' ) ) );
-		$this->color( 'bg', __( 'Background color', 'est' ), '--estc-bg' );
-		$this->color( 'text', __( 'Text color', 'est' ), '--estc-text' );
-		$this->color( 'border', __( 'Border color', 'est' ), '--estc-border' );
-		$this->end_controls_tab();
-
-		$this->start_controls_tab( 'tab_hover', array( 'label' => __( 'Hover', 'est' ) ) );
-		$this->color( 'bg_hover', __( 'Background color', 'est' ), '--estc-bg-hover' );
-		$this->color( 'text_hover', __( 'Text color', 'est' ), '--estc-text-hover' );
-		$this->color( 'border_hover', __( 'Border color', 'est' ), '--estc-border-hover' );
-		$this->end_controls_tab();
-
-		$this->start_controls_tab( 'tab_active', array( 'label' => __( 'Active', 'est' ) ) );
-		$this->color( 'bg_active', __( 'Background color', 'est' ), '--estc-bg-active' );
-		$this->color( 'text_active', __( 'Text color', 'est' ), '--estc-text-active' );
-		$this->color( 'border_active', __( 'Border color', 'est' ), '--estc-border-active' );
-		$this->end_controls_tab();
-
-		$this->end_controls_tabs();
-
-		$this->add_control( 'menu_heading', array( 'label' => __( 'Dropdown menu', 'est' ), 'type' => Controls_Manager::HEADING, 'separator' => 'before', 'condition' => array( 'layout' => 'dropdown' ) ) );
 		$this->color( 'menu_bg', __( 'Menu background', 'est' ), '--estc-menu-bg', '', array( 'layout' => 'dropdown' ) );
 		$this->color( 'menu_text', __( 'Menu text color', 'est' ), '--estc-menu-text', '', array( 'layout' => 'dropdown' ) );
 		$this->color( 'menu_border', __( 'Menu border color', 'est' ), '--estc-menu-border', '', array( 'layout' => 'dropdown' ) );

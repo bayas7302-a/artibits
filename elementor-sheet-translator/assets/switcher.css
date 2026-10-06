@@ -57,7 +57,7 @@
 }
 .est-compact .est-switcher--list a:hover,
 .est-compact .est-switcher__current:hover {
-	background: var(--estc-bg-hover); color: var(--estc-text-hover); border-color: var(--estc-border-hover); opacity: .8;
+	background: var(--estc-bg-hover); color: var(--estc-text-hover); border-color: var(--estc-border-hover);
 }
 .est-compact .est-switcher--list .is-active a,
 .est-compact .est-switcher--list .is-active a:hover {
