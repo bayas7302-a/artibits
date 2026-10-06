@@ -19,6 +19,7 @@ class EST_Settings {
 			'default_name'     => 'English',
 			'default_native'   => 'English',
 			'default_dir'      => 'ltr',
+			'front_code'       => '',
 			'languages'        => array(),
 			'extra_keys'       => '',
 			'html_fallback'    => 1,
@@ -52,6 +53,25 @@ class EST_Settings {
 
 	public static function default_code() {
 		return (string) self::get( 'default_code' );
+	}
+
+	/**
+	 * The language served at the site root (no /xx/ prefix). Defaults to the
+	 * source language; may be any enabled translation language instead.
+	 */
+	public static function front_code() {
+		$front = (string) self::get( 'front_code' );
+		$lang  = self::language( $front );
+		return ( $lang && ! empty( $lang['enabled'] ) ) ? $front : self::default_code();
+	}
+
+	/** Is $code the source language or an enabled translation language? */
+	public static function is_live_code( $code ) {
+		if ( self::default_code() === $code ) {
+			return true;
+		}
+		$lang = self::language( $code );
+		return $lang && ! empty( $lang['enabled'] );
 	}
 
 	/**

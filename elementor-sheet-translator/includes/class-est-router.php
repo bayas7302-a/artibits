@@ -22,7 +22,7 @@ class EST_Router {
 	 * Runs while plugins load: read the language from the URL.
 	 */
 	public static function detect() {
-		self::$current   = EST_Settings::default_code();
+		self::$current   = EST_Settings::front_code();
 		self::$home_path = rtrim( (string) wp_parse_url( get_option( 'home' ), PHP_URL_PATH ), '/' );
 		self::$request   = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 
@@ -87,12 +87,11 @@ class EST_Router {
 			return '';
 		}
 		$code = strtolower( $m[1] );
-		$lang = EST_Settings::language( $code );
-		return ( $lang && ! empty( $lang['enabled'] ) && EST_Settings::default_code() !== $code ) ? $code : '';
+		return EST_Settings::is_live_code( $code ) ? $code : '';
 	}
 
 	public static function init() {
-		if ( self::is_default() ) {
+		if ( self::is_default() && self::is_front() ) {
 			return;
 		}
 		add_filter( 'locale', array( __CLASS__, 'filter_locale' ) );
@@ -118,6 +117,11 @@ class EST_Router {
 
 	public static function is_default() {
 		return self::$current === EST_Settings::default_code();
+	}
+
+	/** Is the current language the one served at the site root? */
+	public static function is_front() {
+		return self::$current === EST_Settings::front_code();
 	}
 
 	public static function current_language() {
@@ -173,11 +177,11 @@ class EST_Router {
 		}
 
 		// Remove an existing language prefix, then add the wanted one.
-		if ( preg_match( '#^/([a-z]{2,3}(?:-[a-z0-9]{2,4})?)(/|$)#i', $path, $m ) && EST_Settings::language( strtolower( $m[1] ) ) ) {
+		if ( preg_match( '#^/([a-z]{2,3}(?:-[a-z0-9]{2,4})?)(/|$)#i', $path, $m ) && EST_Settings::is_live_code( strtolower( $m[1] ) ) ) {
 			$path = substr( $path, strlen( $m[1] ) + 1 );
 			$path = '' === $path ? '/' : $path;
 		}
-		if ( EST_Settings::default_code() !== $code ) {
+		if ( EST_Settings::front_code() !== $code ) {
 			$path = '/' . $code . ( '/' === $path ? '/' : $path );
 		}
 

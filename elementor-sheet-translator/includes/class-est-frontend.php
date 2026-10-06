@@ -14,7 +14,15 @@ class EST_Frontend {
 	public static function init() {
 		add_action( 'wp_head', array( __CLASS__, 'head' ), 5 );
 
-		if ( EST_Router::is_default() || ( is_admin() && ! wp_doing_ajax() ) ) {
+		if ( is_admin() && ! wp_doing_ajax() ) {
+			return;
+		}
+		if ( EST_Router::is_default() ) {
+			// Source language under a prefix (e.g. /en/ when French is the default):
+			// nothing to translate, but internal links must keep the prefix.
+			if ( ! EST_Router::is_front() ) {
+				add_action( 'template_redirect', array( __CLASS__, 'start_buffer' ), 0 );
+			}
 			return;
 		}
 
@@ -215,7 +223,7 @@ class EST_Frontend {
 				$tag = ! empty( $lang['locale'] ) ? str_replace( '_', '-', $lang['locale'] ) : $code;
 				printf( '<link rel="alternate" hreflang="%s" href="%s" />' . "\n", esc_attr( $tag ), esc_url( EST_Router::localize_url( $url, $code ) ) );
 			}
-			printf( '<link rel="alternate" hreflang="x-default" href="%s" />' . "\n", esc_url( EST_Router::localize_url( $url, EST_Settings::default_code() ) ) );
+			printf( '<link rel="alternate" hreflang="x-default" href="%s" />' . "\n", esc_url( EST_Router::localize_url( $url, EST_Settings::front_code() ) ) );
 		}
 
 		$lang = EST_Router::current_language();

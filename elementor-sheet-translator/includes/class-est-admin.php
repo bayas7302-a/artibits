@@ -704,7 +704,7 @@ class EST_Admin {
 								<td class="est-muted">-</td>
 								<td><select name="default_dir"><option value="ltr" <?php selected( $s['default_dir'], 'ltr' ); ?>>LTR</option><option value="rtl" <?php selected( $s['default_dir'], 'rtl' ); ?>>RTL</option></select></td>
 								<td class="est-muted"><?php esc_html_e( 'default', 'est' ); ?></td>
-								<td><code><?php echo esc_html( $home ); ?>/</code></td>
+								<td><code><?php echo esc_html( EST_Router::localize_url( $home . '/', EST_Settings::default_code() ) ); ?></code></td>
 								<td class="est-muted"><?php esc_html_e( 'Source (column A)', 'est' ); ?></td>
 							</tr>
 							<?php foreach ( $langs as $code => $l ) : ?>
@@ -715,7 +715,7 @@ class EST_Admin {
 									<td><input type="text" name="languages[<?php echo esc_attr( $code ); ?>][locale]" value="<?php echo esc_attr( $l['locale'] ); ?>"></td>
 									<td><select name="languages[<?php echo esc_attr( $code ); ?>][dir]"><option value="ltr" <?php selected( $l['dir'], 'ltr' ); ?>>LTR</option><option value="rtl" <?php selected( $l['dir'], 'rtl' ); ?>>RTL</option></select></td>
 									<td><input type="hidden" name="languages[<?php echo esc_attr( $code ); ?>][enabled]" value="0"><input type="checkbox" name="languages[<?php echo esc_attr( $code ); ?>][enabled]" value="1" <?php checked( ! empty( $l['enabled'] ) ); ?>></td>
-									<td><a href="<?php echo esc_url( $home . '/' . $code . '/' ); ?>" target="_blank"><code><?php echo esc_html( $home . '/' . $code . '/' ); ?></code></a></td>
+									<td><?php $lurl = EST_Router::localize_url( $home . '/', $code ); ?><a href="<?php echo esc_url( $lurl ); ?>" target="_blank"><code><?php echo esc_html( $lurl ); ?></code></a></td>
 									<td>
 										<?php echo (int) EST_Store::count( $code ); ?>
 										&nbsp;<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=est_delete_language&code=' . rawurlencode( $code ) ), 'est_delete_language' ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Remove this language and ALL its translations?', 'est' ) ); ?>')" style="color:#b32d2e"><?php esc_html_e( 'Remove', 'est' ); ?></a>
@@ -737,6 +737,15 @@ class EST_Admin {
 
 				<div class="est-card">
 					<h2><?php esc_html_e( 'Settings', 'est' ); ?></h2>
+					<p>
+						<label><strong><?php esc_html_e( 'Default language for visitors', 'est' ); ?></strong><br>
+						<select name="front_code">
+							<?php foreach ( EST_Settings::switcher_languages() as $code => $l ) : ?>
+								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( EST_Settings::front_code(), $code ); ?>><?php echo esc_html( EST_Settings::header_label( $l ) ); ?></option>
+							<?php endforeach; ?>
+						</select></label><br>
+						<span class="est-muted"><?php esc_html_e( 'The language shown at the main address (e.g. site.com/). Every other language, including the one the pages are written in, gets its own prefix (e.g. /en/). Pages are still edited in the source language and the spreadsheets do not change.', 'est' ); ?></span>
+					</p>
 					<p><label><input type="checkbox" name="localize_links" value="1" <?php checked( $s['localize_links'] ); ?>> <?php esc_html_e( 'Keep visitors in their language: rewrite internal links on translated pages (e.g. /contact-us/ becomes /ar/contact-us/).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="html_fallback" value="1" <?php checked( $s['html_fallback'] ); ?>> <?php esc_html_e( 'Also translate matching plain text in the final page HTML (catches theme and widget texts that are not stored in Elementor data).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="hreflang" value="1" <?php checked( $s['hreflang'] ); ?>> <?php esc_html_e( 'Output hreflang links for SEO.', 'est' ); ?></label></p>
@@ -809,6 +818,7 @@ class EST_Admin {
 				'default_native'   => sanitize_text_field( $p['default_native'] ?? 'English' ),
 				'default_dir'      => ( 'rtl' === ( $p['default_dir'] ?? '' ) ) ? 'rtl' : 'ltr',
 				'extra_keys'       => sanitize_text_field( $p['extra_keys'] ?? '' ),
+				'front_code'       => EST_Settings::sanitize_code( $p['front_code'] ?? '' ),
 				'html_fallback'    => empty( $p['html_fallback'] ) ? 0 : 1,
 				'localize_links'   => empty( $p['localize_links'] ) ? 0 : 1,
 				'hreflang'         => empty( $p['hreflang'] ) ? 0 : 1,
