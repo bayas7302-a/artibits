@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -57,3 +57,7 @@ the sheet; the import creates the language for you.
 * Contact Form 7: every form is its own sheet ("Contact Form - ...") with its labels,
   placeholders, dropdown/checkbox options, submit button and messages. Forms inside
   popups are translated too, and the "sent" / error messages come back translated.
+* "Language Buttons" Elementor widget (in addition to "Language Switcher"): shows every
+  language as a button (EN | AR | FR) or as a dropdown, labelled by code or name, with
+  background / text / border colours for normal, hover and active states, padding,
+  spacing, border width and radius.

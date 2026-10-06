@@ -37,3 +37,38 @@
 .est-switcher__menu a { display: block; padding: 8px 16px; color: #1a1a1a; white-space: nowrap; }
 .est-switcher__menu a:hover, .est-switcher__menu a:focus { background: rgba(0, 0, 0, .05); }
 .est-switcher__menu .is-active a { font-weight: 600; }
+
+/* Language Buttons widget: every colour/size is a variable set from the widget */
+.est-compact {
+	--estc-bg: transparent; --estc-text: #1a1a1a; --estc-border: #d4d4d4;
+	--estc-bg-hover: var(--estc-bg); --estc-text-hover: var(--estc-text); --estc-border-hover: var(--estc-border);
+	--estc-bg-active: #111; --estc-text-active: #fff; --estc-border-active: #111;
+	--estc-menu-bg: #fff; --estc-menu-text: #1a1a1a; --estc-menu-border: #e5e5e5; --estc-menu-hover-bg: #f2f2f2;
+	--estc-pad: 6px 12px; --estc-gap: 6px; --estc-bw: 1px; --estc-radius: 4px;
+	display: flex; line-height: 1.2;
+}
+.est-compact .est-switcher--list { gap: var(--estc-gap); flex-wrap: nowrap; }
+.est-compact .est-switcher a,
+.est-compact .est-switcher__current {
+	display: inline-flex; align-items: center; gap: 6px; padding: var(--estc-pad);
+	background: var(--estc-bg); color: var(--estc-text);
+	border: var(--estc-bw) solid var(--estc-border); border-radius: var(--estc-radius);
+	font-weight: inherit; direction: inherit; transition: background .2s, color .2s, border-color .2s, opacity .2s;
+}
+.est-compact .est-switcher--list a:hover,
+.est-compact .est-switcher__current:hover {
+	background: var(--estc-bg-hover); color: var(--estc-text-hover); border-color: var(--estc-border-hover); opacity: .8;
+}
+.est-compact .est-switcher--list .is-active a,
+.est-compact .est-switcher--list .is-active a:hover {
+	background: var(--estc-bg-active); color: var(--estc-text-active); border-color: var(--estc-border-active); font-weight: inherit; opacity: 1;
+}
+.est-compact .est-switcher__menu {
+	min-width: 100%; margin-top: 4px; padding: 4px 0 !important;
+	background: var(--estc-menu-bg); border: 1px solid var(--estc-menu-border); border-radius: var(--estc-radius);
+}
+.est-compact .est-switcher__menu a {
+	display: block; border: 0; border-radius: 0; background: transparent; color: var(--estc-menu-text);
+}
+.est-compact .est-switcher__menu a:hover { background: var(--estc-menu-hover-bg); color: var(--estc-menu-text); }
+.est-compact .est-switcher__menu .is-active a { font-weight: 600; }
