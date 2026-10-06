@@ -70,6 +70,7 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 				'default' => 'buttons',
 				'options' => array(
 					'buttons'  => __( 'Show all languages', 'est' ),
+					'minimal'  => __( 'Text with dividers (FR | EN | ES)', 'est' ),
 					'dropdown' => __( 'Dropdown', 'est' ),
 				),
 			)
@@ -160,7 +161,7 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 				'size_units' => array( 'px' ),
 				'range'      => array( 'px' => array( 'min' => 0, 'max' => 40 ) ),
 				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-gap: {{SIZE}}{{UNIT}};' ),
-				'condition'  => array( 'layout' => 'buttons' ),
+				'condition'  => array( 'layout!' => 'dropdown' ),
 			)
 		);
 
@@ -169,6 +170,97 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 		$this->end_controls_section();
 
 		$this->register_button_style_section();
+
+		/* Dividers and underline (Text with dividers layout) */
+		$min = array( 'layout' => 'minimal' );
+		$this->start_controls_section(
+			'section_style_minimal',
+			array(
+				'label'     => __( 'Dividers & underline', 'est' ),
+				'tab'       => Controls_Manager::TAB_STYLE,
+				'condition' => $min,
+			)
+		);
+
+		$this->add_control( 'show_divider', array( 'label' => __( 'Divider lines', 'est' ), 'type' => Controls_Manager::SWITCHER, 'default' => 'yes', 'return_value' => 'yes', 'prefix_class' => 'est-divider-', 'condition' => $min ) );
+		$this->color( 'divider_color', __( 'Divider color', 'est' ), '--estc-div-color', '', array( 'layout' => 'minimal', 'show_divider' => 'yes' ) );
+		$this->add_control(
+			'divider_height',
+			array(
+				'label'      => __( 'Divider height', 'est' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px', 'em' ),
+				'range'      => array( 'px' => array( 'min' => 4, 'max' => 60 ) ),
+				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-div-h: {{SIZE}}{{UNIT}};' ),
+				'condition'  => array( 'layout' => 'minimal', 'show_divider' => 'yes' ),
+			)
+		);
+		$this->add_control(
+			'divider_width',
+			array(
+				'label'      => __( 'Divider thickness', 'est' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 1, 'max' => 6 ) ),
+				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-div-w: {{SIZE}}{{UNIT}};' ),
+				'condition'  => array( 'layout' => 'minimal', 'show_divider' => 'yes' ),
+			)
+		);
+
+		$this->add_control(
+			'underline',
+			array(
+				'label'        => __( 'Underline', 'est' ),
+				'type'         => Controls_Manager::SELECT,
+				'default'      => 'active',
+				'options'      => array(
+					'none'   => __( 'None', 'est' ),
+					'active' => __( 'Active language', 'est' ),
+					'hover'  => __( 'Active + on hover', 'est' ),
+				),
+				'prefix_class' => 'est-underline-',
+				'separator'    => 'before',
+				'condition'    => $min,
+			)
+		);
+		$ul = array( 'layout' => 'minimal', 'underline!' => 'none' );
+		$this->color( 'underline_active', __( 'Active underline color', 'est' ), '--estc-ul-active', '', $ul );
+		$this->color( 'underline_hover', __( 'Hover underline color', 'est' ), '--estc-ul-hover', '', array( 'layout' => 'minimal', 'underline' => 'hover' ) );
+		$this->add_control(
+			'underline_thickness',
+			array(
+				'label'      => __( 'Underline thickness', 'est' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 1, 'max' => 8 ) ),
+				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-ul-h: {{SIZE}}{{UNIT}};' ),
+				'condition'  => $ul,
+			)
+		);
+		$this->add_control(
+			'underline_width',
+			array(
+				'label'      => __( 'Underline width', 'est' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( '%', 'px' ),
+				'range'      => array( '%' => array( 'min' => 10, 'max' => 100 ), 'px' => array( 'min' => 4, 'max' => 80 ) ),
+				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-ul-w: {{SIZE}}{{UNIT}};' ),
+				'condition'  => $ul,
+			)
+		);
+		$this->add_control(
+			'underline_offset',
+			array(
+				'label'      => __( 'Distance from text', 'est' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array( 'px' => array( 'min' => 0, 'max' => 30 ) ),
+				'selectors'  => array( '{{WRAPPER}} .est-compact' => '--estc-ul-gap: {{SIZE}}{{UNIT}};' ),
+				'condition'  => $ul,
+			)
+		);
+
+		$this->end_controls_section();
 
 		/* Dropdown menu colours */
 		$this->start_controls_section(
@@ -191,7 +283,8 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 
 	protected function render() {
 		$s        = $this->get_settings_for_display();
-		$dropdown = 'dropdown' === ( $s['layout'] ?? 'buttons' );
+		$layout   = $s['layout'] ?? 'buttons';
+		$dropdown = 'dropdown' === $layout;
 
 		$html = EST_Switcher::render(
 			array(
@@ -205,6 +298,6 @@ class EST_Compact_Switcher_Widget extends Widget_Base {
 		if ( '' === $html && \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
 			$html = '<em>' . esc_html__( 'Add a language under Sheet Translator > Languages to see the buttons.', 'est' ) . '</em>';
 		}
-		echo '<div class="est-compact est-compact--' . ( $dropdown ? 'dropdown' : 'buttons' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		echo '<div class="est-compact est-compact--' . esc_attr( in_array( $layout, array( 'dropdown', 'minimal' ), true ) ? $layout : 'buttons' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	}
 }

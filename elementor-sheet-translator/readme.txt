@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -65,3 +65,7 @@ the sheet; the import creates the language for you.
   text colour, background (solid or gradient), border (type, width, colour; "None"
   removes it), border radius and box shadow, plus padding. Active = the current language
   or the dropdown button while open.
+* Language Buttons "Text with dividers" layout (FR | EN | ES): divider lines (colour,
+  height, thickness) and an underline under the active language, optionally also on
+  hover (colours, thickness, width, distance). Normal / hover / active text colours are
+  in the Button style tabs.

@@ -72,3 +72,33 @@
 }
 .est-compact .est-switcher__menu a:hover { background: var(--estc-menu-hover-bg); color: var(--estc-menu-text); }
 .est-compact .est-switcher__menu .is-active a { font-weight: 600; }
+
+/* Language Buttons: "Text with dividers" layout (FR | EN | ES, active underlined) */
+.est-compact--minimal {
+	--estc-text: #8a8a8a; --estc-text-hover: #cfcfcf; --estc-text-active: #d4a647;
+	--estc-div-color: #555; --estc-div-w: 1px; --estc-div-h: 1.1em;
+	--estc-ul-active: var(--estc-text-active); --estc-ul-hover: var(--estc-text-hover);
+	--estc-ul-h: 2px; --estc-ul-w: 100%; --estc-ul-gap: 6px; --estc-gap: 14px;
+}
+.est-compact--minimal .est-switcher--list { align-items: center; }
+.est-compact--minimal .est-switcher__item { display: flex; align-items: center; gap: var(--estc-gap); }
+.est-compact--minimal .est-switcher a {
+	position: relative; padding: 4px 0; background: transparent; border: 0; border-radius: 0;
+	color: var(--estc-text); font-weight: 600; letter-spacing: .06em;
+}
+.est-compact--minimal .est-switcher--list a:hover { background: transparent; color: var(--estc-text-hover); }
+.est-compact--minimal .est-switcher--list .is-active a,
+.est-compact--minimal .est-switcher--list .is-active a:hover { background: transparent; color: var(--estc-text-active); font-weight: 600; }
+/* divider before every language except the first */
+.est-divider-yes .est-compact--minimal .est-switcher__item + .est-switcher__item::before {
+	content: ''; display: block; width: var(--estc-div-w); height: var(--estc-div-h); background: var(--estc-div-color);
+}
+/* underline */
+.est-compact--minimal .est-switcher a::after {
+	content: ''; position: absolute; left: 50%; bottom: calc(-1 * var(--estc-ul-gap));
+	width: var(--estc-ul-w); height: var(--estc-ul-h); background: var(--estc-ul-active);
+	transform: translateX(-50%) scaleX(0); transition: transform .25s ease, background .2s;
+}
+.est-underline-active .est-compact--minimal .is-active a::after,
+.est-underline-hover .est-compact--minimal .is-active a::after { transform: translateX(-50%) scaleX(1); }
+.est-underline-hover .est-compact--minimal .est-switcher__item:not(.is-active) a:hover::after { transform: translateX(-50%) scaleX(1); background: var(--estc-ul-hover); }
