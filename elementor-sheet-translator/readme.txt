@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -73,3 +73,6 @@ the sheet; the import creates the language for you.
   language is shown at the main address (site.com/). The source language then gets its
   own prefix (e.g. /en/). Pages are still edited in the source language and the
   spreadsheets are unchanged.
+* Language order (Languages & Settings): drag the languages to set their order in the
+  switchers. The default language for visitors comes first, and moves to the front
+  whenever the default is changed.

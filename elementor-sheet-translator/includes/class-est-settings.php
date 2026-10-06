@@ -20,6 +20,7 @@ class EST_Settings {
 			'default_native'   => 'English',
 			'default_dir'      => 'ltr',
 			'front_code'       => '',
+			'lang_order'       => array(),
 			'languages'        => array(),
 			'extra_keys'       => '',
 			'html_fallback'    => 1,
@@ -114,7 +115,18 @@ class EST_Settings {
 	 * Default + enabled languages, in switcher order.
 	 */
 	public static function switcher_languages() {
-		return array_merge( array( self::default_code() => self::default_language() ), self::languages( true ) );
+		$all   = array_merge( array( self::default_code() => self::default_language() ), self::languages( true ) );
+		$order = (array) self::get( 'lang_order' );
+		if ( ! $order ) {
+			$order = array( self::front_code() ); // Not arranged yet: default language first.
+		}
+		$sorted = array();
+		foreach ( $order as $code ) {
+			if ( isset( $all[ $code ] ) ) {
+				$sorted[ $code ] = $all[ $code ];
+			}
+		}
+		return $sorted + $all; // Languages not in the saved order keep their place after it.
 	}
 
 	public static function sanitize_code( $code ) {

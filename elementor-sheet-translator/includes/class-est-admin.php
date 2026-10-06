@@ -62,6 +62,10 @@ class EST_Admin {
 			.est-wrap .est-url { font-size: 12px; margin-bottom: 4px; word-break: break-all; }
 			.est-wrap .est-images .button { margin-top: 6px; }
 			.est-wrap .est-images .est-clear { margin: 6px 0 0 8px; }
+			.est-wrap .est-order { margin: 0; max-width: 420px; }
+			.est-wrap .est-order li { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 9px 12px; background: #f6f7f7; border: 1px solid #e2e4e7; border-radius: 6px; cursor: move; }
+			.est-wrap .est-order li .dashicons { color: #8c8f94; }
+			.est-wrap .est-order .ui-sortable-helper { box-shadow: 0 4px 12px rgba(0,0,0,.12); background: #fff; }
 			.est-wrap code.est-big { font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 		</style>
 		<?php
@@ -646,6 +650,7 @@ class EST_Admin {
 	 * ================================================================== */
 
 	public static function page_languages() {
+		wp_enqueue_script( 'jquery-ui-sortable' );
 		$s       = EST_Settings::all();
 		$langs   = EST_Settings::languages();
 		$presets = EST_Settings::presets();
@@ -757,6 +762,27 @@ class EST_Admin {
 					<p><label><input type="checkbox" name="delete_uninstall" value="1" <?php checked( $s['delete_uninstall'] ); ?>> <?php esc_html_e( 'Delete all translations and settings when the plugin is deleted.', 'est' ); ?></label></p>
 				</div>
 
+				<div class="est-card">
+					<h2><?php esc_html_e( 'Language order', 'est' ); ?></h2>
+					<p class="est-muted"><?php esc_html_e( 'Drag to set the order of the languages in the language switchers. The default language for visitors is moved to the front whenever you change it.', 'est' ); ?></p>
+					<ul id="est-lang-order" class="est-order">
+						<?php foreach ( EST_Settings::switcher_languages() as $code => $l ) : ?>
+							<li data-code="<?php echo esc_attr( $code ); ?>"><span class="dashicons dashicons-menu"></span> <strong><?php echo esc_html( strtoupper( $code ) ); ?></strong> <?php echo esc_html( $l['name'] ); ?><?php echo EST_Settings::front_code() === $code ? ' <em class="est-muted">(' . esc_html__( 'default', 'est' ) . ')</em>' : ''; ?></li>
+						<?php endforeach; ?>
+					</ul>
+					<input type="hidden" name="lang_order" id="est-lang-order-input" value="<?php echo esc_attr( implode( ',', array_keys( EST_Settings::switcher_languages() ) ) ); ?>">
+					<script>
+					jQuery( function ( $ ) {
+						$( '#est-lang-order' ).sortable( {
+							axis: 'y',
+							update: function () {
+								$( '#est-lang-order-input' ).val( $( '#est-lang-order li' ).map( function () { return $( this ).data( 'code' ); } ).get().join( ',' ) );
+							}
+						} );
+					} );
+					</script>
+				</div>
+
 				<?php submit_button( __( 'Save changes', 'est' ) ); ?>
 			</form>
 
@@ -811,6 +837,12 @@ class EST_Admin {
 		$p = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 
 		$default = EST_Settings::sanitize_code( $p['default_code'] ?? 'en' );
+		$front   = EST_Settings::sanitize_code( $p['front_code'] ?? '' );
+		$order   = array_values( array_filter( array_map( array( 'EST_Settings', 'sanitize_code' ), explode( ',', (string) ( $p['lang_order'] ?? '' ) ) ) ) );
+		if ( $front && $front !== EST_Settings::front_code() ) {
+			// A new default language goes to the front of the switcher.
+			$order = array_merge( array( $front ), array_diff( $order, array( $front ) ) );
+		}
 		EST_Settings::update(
 			array(
 				'default_code'     => '' !== $default ? $default : 'en',
@@ -818,7 +850,8 @@ class EST_Admin {
 				'default_native'   => sanitize_text_field( $p['default_native'] ?? 'English' ),
 				'default_dir'      => ( 'rtl' === ( $p['default_dir'] ?? '' ) ) ? 'rtl' : 'ltr',
 				'extra_keys'       => sanitize_text_field( $p['extra_keys'] ?? '' ),
-				'front_code'       => EST_Settings::sanitize_code( $p['front_code'] ?? '' ),
+				'front_code'       => $front,
+				'lang_order'       => $order,
 				'html_fallback'    => empty( $p['html_fallback'] ) ? 0 : 1,
 				'localize_links'   => empty( $p['localize_links'] ) ? 0 : 1,
 				'hreflang'         => empty( $p['hreflang'] ) ? 0 : 1,
