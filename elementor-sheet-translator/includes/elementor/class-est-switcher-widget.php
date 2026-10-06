@@ -56,6 +56,7 @@ class EST_Switcher_Widget extends Widget_Base {
 				'default' => 'toggle',
 				'options' => array(
 					'toggle'   => __( 'Toggle buttons', 'est' ),
+					'minimal'  => __( 'Text with dividers (FR | EN | ES)', 'est' ),
 					'dropdown' => __( 'Dropdown', 'est' ),
 					'list'     => __( 'Inline list', 'est' ),
 				),
@@ -240,6 +241,7 @@ class EST_Switcher_Widget extends Widget_Base {
 		$this->end_controls_section();
 
 		$this->register_button_style_section();
+		$this->register_minimal_section( 'style' );
 
 		/* Style: dropdown menu */
 		$this->start_controls_section(
@@ -346,14 +348,16 @@ class EST_Switcher_Widget extends Widget_Base {
 	}
 
 	protected function render() {
-		$s = $this->get_settings_for_display();
+		$s       = $this->get_settings_for_display();
+		$minimal = 'minimal' === ( $s['style'] ?? 'toggle' );
 
 		$html = EST_Switcher::render(
 			array(
-				'style'        => $s['style'] ?? 'toggle',
+				// "Text with dividers" is an inline list styled by .est-compact--minimal.
+				'style'        => $minimal ? 'list' : ( $s['style'] ?? 'toggle' ),
 				'display'      => $s['display'] ?? 'native',
-				'show_current' => $s['show_current'] ?? 'yes',
-				'separator'    => $s['separator'] ?? '',
+				'show_current' => $minimal ? 'yes' : ( $s['show_current'] ?? 'yes' ),
+				'separator'    => $minimal ? '' : ( $s['separator'] ?? '' ),
 				'open_on'      => $s['open_on'] ?? 'click',
 				'menu_align'   => $s['menu_align'] ?? 'start',
 			)
@@ -361,6 +365,9 @@ class EST_Switcher_Widget extends Widget_Base {
 
 		if ( '' === $html && \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
 			$html = '<em>' . esc_html__( 'Add a language under Sheet Translator > Languages to see the switcher.', 'est' ) . '</em>';
+		}
+		if ( $minimal ) {
+			$html = '<div class="est-compact est-compact--minimal">' . $html . '</div>';
 		}
 		echo '<div class="est-switcher-wrap">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
 	}
