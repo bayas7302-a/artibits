@@ -338,11 +338,11 @@ function fve_print_assets() {
 .fve-card__media{display:block;width:100%;height:auto;aspect-ratio:4/5;margin:16px 0 20px;border-radius:12px;overflow:hidden;background:#E6E8EB}
 .fve .fve-card__img{display:block;width:100% !important;height:100% !important;max-width:none;max-height:none;margin:0;border-radius:0;object-fit:cover;object-position:center;transition:transform .35s ease}
 .fve .fve-card:hover .fve-card__img{transform:scale(1.03)}
-.fve-card__more{display:inline-flex;align-items:center;gap:8px;margin-top:auto;padding:11px 24px;border:1.5px solid var(--fve-red);border-radius:999px;background:#fff;color:var(--fve-red);font-size:14px;font-weight:600;line-height:1.2;transition:background .2s,color .2s}
+.fve-card__more{display:inline-flex;align-items:center;gap:8px;margin-top:auto;padding:11px 24px;border:0;border-radius:999px;background:var(--fve-red);color:#fff;font-size:14px;font-weight:600;line-height:1.2;transition:background .2s}
 .fve-card__more svg{display:block;transition:transform .2s}
-.fve .fve-card:hover .fve-card__more,.fve .fve-card:focus-visible .fve-card__more{background:var(--fve-red);color:#fff}
+.fve .fve-card:hover .fve-card__more,.fve .fve-card:focus-visible .fve-card__more{background:#B30F17;color:#fff}
 .fve .fve-card:hover .fve-card__more svg{transform:translateX(3px)}
-.fve-tag{position:absolute;top:14px;left:14px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600}
+.fve-tag{position:static;align-self:center;margin:0 0 6px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600;line-height:1.4}
 .fve-empty{padding:40px 16px;text-align:center;color:var(--fve-muted)}
 
 /* Popup */

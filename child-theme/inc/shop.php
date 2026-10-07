@@ -285,6 +285,10 @@ function fvs_promo_meta_box( $post ) {
 		return;
 	}
 	$on = has_term( $term->term_id, FVS_PROMO_TAX, $post );
+	// Products → Add Promotion: new product starts with Promotion ticked
+	if ( ! $on && 'auto-draft' === $post->post_status && ! empty( $_GET['fvs_promo'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		$on = true;
+	}
 	// The hidden 0 lets WordPress remove the product from Promotions when the box is unticked
 	echo '<input type="hidden" name="tax_input[' . esc_attr( FVS_PROMO_TAX ) . '][]" value="0">';
 	printf(
@@ -298,6 +302,58 @@ function fvs_promo_meta_box( $post ) {
 		esc_url( get_term_link( $term ) )
 	);
 }
+
+/* ---------------------------------------------------------------------------
+ * Admin: Products → Promotions (list) + Products → Add Promotion.
+ * Products → All Products no longer lists promoted products.
+ * ------------------------------------------------------------------------ */
+add_action( 'admin_menu', function () {
+	add_submenu_page( 'edit.php?post_type=product', 'Promotions', 'Promotions', 'edit_products',
+		'edit.php?post_type=product&' . FVS_PROMO_TAX . '=' . FVS_PROMO_TERM );
+	add_submenu_page( 'edit.php?post_type=product', 'Add Promotion', 'Add Promotion', 'edit_products',
+		'post-new.php?post_type=product&fvs_promo=1' );
+}, 20 );
+
+function fvs_admin_is_promo_list() {
+	global $pagenow;
+	return is_admin() && 'edit.php' === $pagenow && isset( $_GET['post_type'], $_GET[ FVS_PROMO_TAX ] ) // phpcs:ignore WordPress.Security.NonceVerification
+		&& 'product' === $_GET['post_type'] && FVS_PROMO_TERM === $_GET[ FVS_PROMO_TAX ]; // phpcs:ignore WordPress.Security.NonceVerification
+}
+
+/* All Products: leave promoted products out (they have their own list) */
+add_action( 'pre_get_posts', function ( $q ) {
+	global $pagenow;
+	if ( ! is_admin() || ! $q->is_main_query() || 'edit.php' !== $pagenow || 'product' !== $q->get( 'post_type' ) ) return;
+	if ( $q->get( FVS_PROMO_TAX ) ) return; // Promotions list
+	$tax_query   = (array) $q->get( 'tax_query' );
+	$tax_query[] = fvs_promo_clause( 'NOT IN' );
+	$q->set( 'tax_query', $tax_query );
+} );
+
+/* Highlight the right submenu item */
+add_filter( 'submenu_file', function ( $submenu_file ) {
+	global $pagenow;
+	if ( fvs_admin_is_promo_list() ) return 'edit.php?post_type=product&' . FVS_PROMO_TAX . '=' . FVS_PROMO_TERM;
+	if ( 'post-new.php' === $pagenow && ! empty( $_GET['fvs_promo'] ) ) return 'post-new.php?post_type=product&fvs_promo=1'; // phpcs:ignore WordPress.Security.NonceVerification
+	return $submenu_file;
+} );
+
+/* Promotions list: page title "Promotions" and "Add new" opens a promotion */
+add_action( 'admin_footer-edit.php', function () {
+	if ( ! fvs_admin_is_promo_list() ) return;
+	$add = admin_url( 'post-new.php?post_type=product&fvs_promo=1' );
+	?>
+	<script>
+	(function () {
+		var h = document.querySelector('.wrap h1.wp-heading-inline'); if (h) h.textContent = 'Promotions';
+		document.querySelectorAll('.wrap a.page-title-action').forEach(function (a) {
+			if (a.href.indexOf('post-new.php') !== -1) { a.href = <?php echo wp_json_encode( $add ); ?>; a.textContent = 'Add promotion'; }
+		});
+		document.title = document.title.replace(/^Products/, 'Promotions');
+	})();
+	</script>
+	<?php
+} );
 
 /* Main categories (and their parents) that contain promoted products – cached, cleared with the category cache */
 function fvs_promo_category_ids() {
