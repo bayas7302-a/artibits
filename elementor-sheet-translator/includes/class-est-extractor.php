@@ -42,6 +42,46 @@ class EST_Extractor {
 		return $ok;
 	}
 
+	/**
+	 * Keys that never hold visible text, even when their value looks like it
+	 * (animation presets such as "Fade In Up", split modes, CSS, links...).
+	 */
+	const PROSE_DENY = '/(css|class|^_|(^|_)id$|_ids?$|url|link|href|colou?r|selector|json|attributes|anim|easing|font|typography|preset|effect|transition|trigger|direction|position|align|style|split|parallax|(^|_)type$|_mode$|_key$|_tag$|html_tag|template|query|orderby|taxonomy|post_type|lottie|svg|source$|breakpoint|unit|format)/i';
+
+	/**
+	 * A setting is translated when its key names a text field (title, content,
+	 * description...) or, for any other key - e.g. third-party widgets such as
+	 * the Liquid fancy box - when its value reads like human text.
+	 */
+	public static function is_translatable( $key, $value ) {
+		if ( ! self::is_translatable_value( $value ) ) {
+			return false;
+		}
+		if ( self::is_translatable_key( $key ) ) {
+			return true;
+		}
+		return is_string( $key ) && ! preg_match( self::PROSE_DENY, $key ) && self::looks_like_prose( $value );
+	}
+
+	/**
+	 * Reads like human text: at least two plain words (identifiers such as
+	 * "icon-num-1" or "expo.inOut" do not count) plus a capital, a non-Latin
+	 * letter or sentence punctuation - or four or more plain words.
+	 */
+	public static function looks_like_prose( $value ) {
+		$tokens = preg_split( '/\s+/u', trim( strip_tags( (string) $value ) ) );
+		$words  = 0;
+		foreach ( $tokens as $t ) {
+			if ( preg_match( "/^[(\"'\x{201C}\x{2018}]?\p{L}[\p{L}\p{M}'\x{2019}]*(-\p{L}+)?[.,!?;:)\"'\x{201D}\x{2019}]*$/u", $t ) ) {
+				$words++;
+			}
+		}
+		if ( $words < 2 ) {
+			return false;
+		}
+		return $words >= 4 || (bool) preg_match( '/\p{Lu}|[^\x00-\x7F]|[.!?;:\x{2014}\x{2013}]/u', (string) $value );
+	}
+
 	public static function is_translatable_value( $value ) {
 		if ( ! is_string( $value ) ) {
 			return false;
@@ -189,7 +229,7 @@ class EST_Extractor {
 				}
 				continue;
 			}
-			if ( self::is_translatable_key( $key ) && self::is_translatable_value( $value ) ) {
+			if ( self::is_translatable( $key, $value ) ) {
 				$norm = EST_Text::normalize( $value );
 				$out[ md5( $norm ) ] = $norm;
 			}
@@ -208,7 +248,7 @@ class EST_Extractor {
 				}
 				continue;
 			}
-			if ( self::is_translatable_key( $key ) && self::is_translatable_value( $value ) ) {
+			if ( self::is_translatable( $key, $value ) ) {
 				$translated = call_user_func( $lookup, $value );
 				if ( null !== $translated && '' !== $translated ) {
 					$settings[ $key ] = EST_Text::keep_spacing( $value, $translated );
