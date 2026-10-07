@@ -410,6 +410,24 @@ function soharon_render_thankyou() {
     <?php
 }
 
+/* Payment options, terms and "Place order" in the LEFT card (under Additional information)
+   instead of under the order summary. Still inside the checkout form, and WooCommerce keeps
+   refreshing it in place (it updates ".woocommerce-checkout-payment" wherever it is). */
+add_action( 'wp', function () {
+    if ( function_exists( 'is_checkout' ) && is_checkout() && ! is_wc_endpoint_url( 'order-pay' ) ) {
+        remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
+        add_action( 'woocommerce_checkout_shipping', 'soharon_checkout_payment_section', 99 );
+    }
+} );
+function soharon_checkout_payment_section() {
+    echo '<div class="soharon-pay-section">';
+    if ( WC()->cart && WC()->cart->needs_payment() ) {
+        echo '<h3 class="soharon-pay-title">Payment</h3>';
+    }
+    woocommerce_checkout_payment();
+    echo '</div>';
+}
+
 /* Checkout + thank-you layout */
 function soharon_checkout_css() {
     $css = <<<'CSS'
@@ -456,16 +474,43 @@ function soharon_checkout_css() {
 {S} #payment{ margin-top:8px; padding:0; background:transparent; border-radius:0; }
 {S} #payment ul.payment_methods{ list-style:none; margin:0 0 16px; padding:0; border:0; }
 {S} #payment ul.payment_methods li{
-    margin:0 0 10px; padding:14px 16px; border:1px solid var(--s-border);
-    border-radius:14px; background:var(--s-bg); font-size:14px; line-height:1.5;
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    margin:0 0 10px; padding:16px 18px; border:1.5px solid var(--s-border);
+    border-radius:14px; background:#fff; font-size:14px; line-height:1.5; transition:border-color .2s;
 }
-{S} #payment ul.payment_methods li:has(input:checked){ border-color:var(--s-red); background:#fff; }
-{S} #payment ul.payment_methods li > label{ display:inline; font-weight:600; cursor:pointer; margin-left:8px; }
-{S} #payment ul.payment_methods li img{ max-height:24px; vertical-align:middle; margin:0 4px; }
+{S} #payment ul.payment_methods li:hover{ border-color:#D5D8DC; }
+{S} #payment ul.payment_methods li:has(> input:checked){ border-color:var(--s-red); box-shadow:0 0 0 3px rgba(219,20,29,.06); }
+{S} #payment ul.payment_methods li > input.input-radio{ flex:0 0 auto; width:18px; height:18px; margin:0; cursor:pointer; }
+{S} #payment ul.payment_methods li > label{ flex:1 1 auto; display:flex; align-items:center; gap:8px; margin:0; font-weight:600; color:var(--s-text); cursor:pointer; }
+{S} #payment ul.payment_methods li img{ max-height:24px; vertical-align:middle; margin:0 0 0 4px; }
 {S} #payment ul.payment_methods li.woocommerce-info{ padding-left:48px; border:0; border-left:4px solid var(--s-red); background:var(--s-red-soft); }
-{S} #payment div.payment_box{ margin:10px 0 0; padding:12px 14px; border-radius:12px; background:var(--s-bg); font-size:13px; color:#555; }
+
+/* Details of the selected method (e.g. Stripe card form): same box, below a thin line */
+{S} #payment div.payment_box{
+    flex:0 0 100%; margin:4px 0 0; padding:16px 0 0; border-top:1px solid var(--s-border);
+    border-radius:0; background:transparent; font-size:13px; color:#555;
+}
 {S} #payment div.payment_box::before{ display:none; }
 {S} #payment div.payment_box p:last-child{ margin-bottom:0; }
+{S} #payment div.payment_box fieldset,{S} #payment .wc-payment-form{ min-width:0; margin:0; padding:0; border:0; background:transparent; }
+{S} #payment .wc-stripe-upe-element{ margin:0; }
+{S} #payment #wc-stripe-upe-errors:not(:empty){ margin-top:10px; color:var(--s-red); font-size:13px; }
+
+/* Stripe test-mode note */
+{S} #payment .wc-stripe-payment-method-instruction{
+    margin:0 0 14px; padding:10px 12px; border-radius:10px; background:#FFF7E6; color:#7A5300; font-size:12.5px; line-height:1.6;
+}
+{S} #payment .wc-stripe-payment-method-instruction a{ color:#7A5300; text-decoration:underline; }
+{S} #payment .wc-stripe-copy-test-number{
+    display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none;
+    color:inherit; font:inherit; font-weight:600; cursor:pointer;
+}
+{S} #payment .wc-stripe-copy-test-number i{ display:none; }
+
+/* "Payment" heading above the methods */
+{S} .soharon-pay-section{ margin-top:24px; padding-top:24px; border-top:1px solid var(--s-border); }
+{S} .soharon-pay-title{ margin:0 0 14px; font-size:18px; font-weight:600; color:var(--s-text); }
+{S} .soharon-pay-section #payment{ margin-top:0; }
 {S} #payment div.form-row{ margin:0; padding:0; }
 {S} .woocommerce-privacy-policy-text p,
 {S} .woocommerce-terms-and-conditions-checkbox-text{ font-size:12px; line-height:1.6; color:var(--s-muted); }
@@ -563,13 +608,21 @@ function soharon_checkout_css() {
 {S} #payment .woocommerce-info::before,
 {S} #payment ul.payment_methods li.woocommerce-info::before{ position:static; width:22px; height:22px; color:var(--s-muted); }
 
+/* Desktop: "Your order" stays in view while the customer scrolls the form
+   (heading + summary are two grid items, so both stick; the heading has a fixed height) */
+@media (min-width:901px){
+    {S} form.checkout{ --s-stick:110px; }
+    {S} #order_review_heading{ position:sticky; top:var(--s-stick); z-index:2; height:64px; box-sizing:border-box; }
+    {S} #order_review{ position:sticky; top:calc(var(--s-stick) + 64px); z-index:1; align-self:start; }
+}
+
 /* ---------- Mobile ---------- */
 @media (max-width:900px){
     {S} form.checkout{
         grid-template-columns:1fr; grid-template-rows:auto;
-        grid-template-areas:"notice" "details" "heading" "review";
+        grid-template-areas:"notice" "heading" "review" "details";
     }
-    {S} #customer_details{ margin-bottom:20px; }
+    {S} #order_review{ margin-bottom:20px; }
     {S} .soharon-ty-grid{ grid-template-columns:1fr; }
 }
 @media (max-width:600px){
@@ -670,6 +723,13 @@ function soharon_render_auth_forms() {
                     </div>
 
                     <?php wp_nonce_field( 'woocommerce-login', 'woocommerce-login-nonce' ); ?>
+                    <?php
+                    // Back to the page that sent them here (e.g. "Log in to see your offers" on cart/checkout)
+                    $soharon_back = isset( $_GET['redirect_to'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ), '' ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+                    if ( $soharon_back ) {
+                        echo '<input type="hidden" name="redirect" value="' . esc_url( $soharon_back ) . '">';
+                    }
+                    ?>
                     <button type="submit" class="woocommerce-button button woocommerce-form-login__submit" name="login" value="Log in">Sign in</button>
 
                     <?php do_action( 'woocommerce_login_form_end' ); ?>

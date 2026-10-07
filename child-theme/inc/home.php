@@ -62,7 +62,9 @@ add_shortcode( 'fanvil_categories', function ( $atts ) {
  * top_picks ....... products marked Featured (★ in Products list);
  *                   if none are featured → best sellers, then newest
  * special_offers .. products with a sale price (scheduled sales included)
+ * promotions ...... products ticked as Promotion – also [fanvil_promotions]; "View all" → /promotions/
  * Also: type="new" (newest) and type="best_sellers".
+ * Promoted products appear ONLY in the promotions section, never in the other sections.
  * Options: limit="8", category="slug", title="…" (no heading by default), link="URL for View all"
  * ======================================================================== */
 function fvs_products_shortcode_render( $atts ) {
@@ -76,6 +78,7 @@ function fvs_products_shortcode_render( $atts ) {
 
 	$type  = sanitize_key( $atts['type'] );
 	$limit = max( 1, (int) $atts['limit'] );
+	$promo = in_array( $type, array( 'promotions', 'promotion' ), true );
 	$base  = array(
 		'post_type'      => 'product',
 		'post_status'    => 'publish',
@@ -89,6 +92,8 @@ function fvs_products_shortcode_render( $atts ) {
 			'operator' => 'NOT IN',
 		) ),
 	);
+	// Promotions section shows only promoted products; every other section hides them
+	$base['tax_query'][] = fvs_promo_clause( $promo ? 'IN' : 'NOT IN' );
 	if ( $atts['category'] ) {
 		$base['tax_query'][] = array(
 			'taxonomy'         => 'product_cat',
@@ -103,7 +108,15 @@ function fvs_products_shortcode_render( $atts ) {
 	$ids          = array();
 	$default      = 'Top Picks';
 
-	switch ( $type ) {
+	switch ( $promo ? 'promotions' : $type ) {
+		case 'promotions':
+			$default = 'Promotions';
+			$ids     = get_posts( array_merge( $base, array( 'orderby' => array( 'menu_order' => 'ASC', 'date' => 'DESC' ) ) ) );
+			if ( ! $atts['link'] && function_exists( 'fvs_promo_url' ) ) {
+				$atts['link'] = fvs_promo_url(); // "View all" → /promotions/
+			}
+			break;
+
 		case 'special_offers':
 			$default = 'Special Offers';
 			$on_sale = wc_get_product_ids_on_sale();
@@ -141,7 +154,9 @@ function fvs_products_shortcode_render( $atts ) {
 			return '<p style="padding:12px 16px;border:1px dashed #DB141D;border-radius:10px;color:#DB141D;font-size:14px">'
 				. esc_html( 'Special Offers' === $default
 					? 'Special Offers is hidden: no products have a sale price yet. Add a Sale price in Product data → General. (Only admins see this note.)'
-					: 'No products found for this section. (Only admins see this note.)' )
+					: ( 'Promotions' === $default
+						? 'Promotions is hidden: no products are ticked as Promotion yet. Tick "Promotion" on a product. (Only admins see this note.)'
+						: 'No products found for this section. (Only admins see this note.)' ) )
 				. '</p>';
 		}
 		return '';
@@ -171,6 +186,12 @@ function fvs_products_shortcode_render( $atts ) {
 	return ob_get_clean();
 }
 add_shortcode( 'fanvil_products', function ( $atts ) {
+	return fvs_safe_render( 'fvs_products_shortcode_render', $atts );
+} );
+/* [fanvil_promotions limit="4" title="Promotions" link="…" category="slug"] – promoted products */
+add_shortcode( 'fanvil_promotions', function ( $atts ) {
+	$atts         = (array) $atts;
+	$atts['type'] = 'promotions';
 	return fvs_safe_render( 'fvs_products_shortcode_render', $atts );
 } );
 
