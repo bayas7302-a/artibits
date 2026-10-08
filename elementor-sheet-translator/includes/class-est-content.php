@@ -39,7 +39,8 @@ class EST_Content {
 			"SELECT p.ID, p.post_type, p.post_title
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_elementor_data'
-			WHERE p.post_status IN ('publish','private','future','draft')
+			WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} c WHERE c.post_id = p.ID AND c.meta_key = '_est_source')
+			AND p.post_status IN ('publish','private','future','draft')
 			AND p.post_type NOT IN ('" . implode( "','", array_map( 'esc_sql', $exclude ) ) . "')
 			AND m.meta_value NOT IN ('', '[]')
 			ORDER BY p.post_type ASC, p.menu_order ASC, p.post_title ASC" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -69,7 +70,8 @@ class EST_Content {
 				"SELECT p.ID, p.post_type, p.post_title
 				FROM {$wpdb->posts} p
 				LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_elementor_edit_mode'
-				WHERE p.post_status IN ('publish','private','future')
+				WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} c WHERE c.post_id = p.ID AND c.meta_key = '_est_source')
+			AND p.post_status IN ('publish','private','future')
 				AND p.post_type IN ('" . implode( "','", array_map( 'esc_sql', $public ) ) . "')
 				AND ( m.meta_value IS NULL OR m.meta_value <> 'builder' )
 				AND ( p.post_content <> '' OR p.post_title <> '' )

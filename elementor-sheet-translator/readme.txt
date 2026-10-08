@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.6.2
+Stable tag: 1.7.0
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -76,3 +76,13 @@ the sheet; the import creates the language for you.
 * Language order (Languages & Settings): drag the languages to set their order in the
   switchers. The default language for visitors comes first, and moves to the front
   whenever the default is changed.
+* Separate design per language: "Create AR version" (Pages / Posts / Templates lists,
+  the Content screen, the admin bar on a translated page, or the language bar at the
+  bottom of the Elementor editor) makes a copy with the sheet translations applied.
+  Edit it freely in Elementor - text, styling, layout. Visitors on /ar/ see the copy
+  wherever the original appears (pages, posts, headers, footers, popups); URLs, menus
+  and theme assignments stay on the original. Copies have no URL of their own (they
+  redirect), are left out of sitemaps and listings, and are listed under
+  "Language versions" in the admin. Text still in English inside a copy keeps
+  being translated from the sheets. Trashing/deleting the original does the same to
+  its copies.

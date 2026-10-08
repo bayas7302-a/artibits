@@ -17,6 +17,11 @@ class EST_Admin {
 		add_action( 'admin_post_est_import', array( __CLASS__, 'handle_import' ) );
 		add_action( 'admin_post_est_save_translations', array( __CLASS__, 'handle_save_translations' ) );
 		add_action( 'admin_post_est_save_images', array( __CLASS__, 'handle_save_images' ) );
+		add_action( 'admin_post_est_create_copy', array( __CLASS__, 'handle_create_copy' ) );
+		add_filter( 'page_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
+		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
+		add_action( 'current_screen', array( __CLASS__, 'list_views' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'copy_notice' ) );
 		add_action( 'admin_post_est_save_settings', array( __CLASS__, 'handle_save_settings' ) );
 		add_action( 'admin_post_est_add_language', array( __CLASS__, 'handle_add_language' ) );
 		add_action( 'admin_post_est_delete_language', array( __CLASS__, 'handle_delete_language' ) );
@@ -221,6 +226,20 @@ class EST_Admin {
 								<a href="<?php echo esc_url( $dl . '&format=csv_single' ); ?>">CSV</a>
 								<?php if ( $langs ) : ?>
 									| <a href="<?php echo esc_url( admin_url( 'admin.php?page=est-editor&source=' . rawurlencode( $key ) ) ); ?>"><?php esc_html_e( 'Translate', 'est' ); ?></a>
+									<?php if ( 'post' === $s['kind'] && EST_Content::is_elementor( $s['id'] ) ) : ?>
+										<br><span class="est-muted"><?php esc_html_e( 'Separate design:', 'est' ); ?></span>
+										<?php
+										foreach ( $langs as $code => $l ) {
+											$copy = EST_Copies::copy_of( $s['id'], $code );
+											printf(
+												' <a href="%s" title="%s">%s</a>',
+												esc_url( $copy ? EST_Copies::editor_url( $copy ) : EST_Copies::create_url( $s['id'], $code ) ),
+												esc_attr( $copy ? __( 'Edit this language version in Elementor', 'est' ) : __( 'Create a separate version to edit in Elementor', 'est' ) ),
+												esc_html( ( $copy ? '' : '+ ' ) . strtoupper( $code ) )
+											);
+										}
+										?>
+									<?php endif; ?>
 								<?php endif; ?>
 							</td>
 						</tr>
@@ -503,6 +522,99 @@ class EST_Admin {
 				'lang'   => $code,
 			)
 		);
+	}
+
+	/* =====================================================================
+	 * Language copies (separate Elementor design per language)
+	 * ================================================================== */
+
+	public static function handle_create_copy() {
+		$source = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! current_user_can( 'edit_post', $source ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'est' ) );
+		}
+		check_admin_referer( 'est_create_copy' );
+		$lang = isset( $_GET['lang'] ) ? sanitize_text_field( wp_unslash( $_GET['lang'] ) ) : '';
+		$copy = EST_Copies::create( $source, $lang );
+		if ( is_wp_error( $copy ) ) {
+			wp_die( esc_html( $copy->get_error_message() ) );
+		}
+		self::flush_caches();
+		wp_safe_redirect( EST_Copies::editor_url( $copy ) );
+		exit;
+	}
+
+	public static function row_actions( $actions, $post ) {
+		if ( ! current_user_can( 'edit_post', $post->ID ) || 'builder' !== get_post_meta( $post->ID, '_elementor_edit_mode', true ) ) {
+			return $actions;
+		}
+		$source = (int) get_post_meta( $post->ID, '_est_source', true );
+		if ( $source ) {
+			$lang                  = (string) get_post_meta( $post->ID, '_est_lang', true );
+			$actions['est_source'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( get_edit_post_link( $source ) ),
+				esc_html( sprintf( /* translators: 1: language, 2: title */ __( '%1$s version of "%2$s"', 'est' ), strtoupper( $lang ), get_the_title( $source ) ) )
+			);
+			return $actions;
+		}
+		foreach ( EST_Settings::languages() as $code => $l ) {
+			$copy                            = EST_Copies::copy_of( $post->ID, $code );
+			$actions[ 'est_copy_' . $code ] = $copy
+				? sprintf( '<a href="%s">%s</a>', esc_url( EST_Copies::editor_url( $copy ) ), esc_html( sprintf( /* translators: %s: language */ __( 'Edit %s version', 'est' ), strtoupper( $code ) ) ) )
+				: sprintf( '<a href="%s">%s</a>', esc_url( EST_Copies::create_url( $post->ID, $code ) ), esc_html( sprintf( /* translators: %s: language */ __( 'Create %s version', 'est' ), strtoupper( $code ) ) ) );
+		}
+		return $actions;
+	}
+
+	/** "Language copies (n)" view link on post lists. */
+	public static function list_views( $screen ) {
+		if ( 'edit' !== $screen->base ) {
+			return;
+		}
+		add_filter(
+			'views_' . $screen->id,
+			function ( $views ) use ( $screen ) {
+				$q = new WP_Query(
+					array(
+						'post_type'          => $screen->post_type,
+						'post_status'        => 'any',
+						'posts_per_page'     => 1,
+						'fields'             => 'ids',
+						'est_include_copies' => true,
+						'meta_query'         => array( array( 'key' => '_est_source', 'compare' => 'EXISTS' ) ), // phpcs:ignore WordPress.DB.SlowDBQuery
+					)
+				);
+				if ( $q->found_posts ) {
+					$current             = ! empty( $_GET['est_copies'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+					$views['est_copies'] = sprintf(
+						'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
+						esc_url( add_query_arg( array( 'post_type' => $screen->post_type, 'est_copies' => 1 ), admin_url( 'edit.php' ) ) ),
+						$current ? ' class="current" aria-current="page"' : '',
+						esc_html__( 'Language versions', 'est' ),
+						(int) $q->found_posts
+					);
+				}
+				return $views;
+			}
+		);
+	}
+
+	public static function copy_notice() {
+		$screen = get_current_screen();
+		if ( ! $screen || 'post' !== $screen->base ) {
+			return;
+		}
+		$id     = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$source = $id ? (int) get_post_meta( $id, '_est_source', true ) : 0;
+		if ( $source ) {
+			printf(
+				'<div class="notice notice-info"><p>%s <a href="%s">%s</a></p></div>',
+				esc_html( sprintf( /* translators: 1: language, 2: title */ __( 'This is the %1$s version of "%2$s". Visitors see it at the original page\'s address in that language.', 'est' ), strtoupper( (string) get_post_meta( $id, '_est_lang', true ) ), get_the_title( $source ) ) ),
+				esc_url( get_edit_post_link( $source ) ),
+				esc_html__( 'Edit the original', 'est' )
+			);
+		}
 	}
 
 	/* =====================================================================
