@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Elementor Sheet Translator
  * Description:       Translate an Elementor-built website (pages, headers, footers, popups, templates, menus) with spreadsheets. Export every page to Excel/CSV with English in the first column, fill in the language columns, import it back. Adds /ar/-style language URLs, correct RTL/LTR output and an Elementor Language Switcher widget.
- * Version:           1.7.0
+ * Version:           1.8.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            ArtiBits
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'EST_VERSION', '1.7.0' );
+define( 'EST_VERSION', '1.8.0' );
 define( 'EST_FILE', __FILE__ );
 define( 'EST_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EST_URL', plugin_dir_url( __FILE__ ) );
@@ -29,6 +29,7 @@ require_once EST_DIR . 'includes/class-est-frontend.php';
 require_once EST_DIR . 'includes/class-est-switcher.php';
 require_once EST_DIR . 'includes/class-est-transfer.php';
 require_once EST_DIR . 'includes/class-est-copies.php';
+require_once EST_DIR . 'includes/class-est-seo.php';
 
 register_activation_hook( __FILE__, array( 'EST_Store', 'install' ) );
 
@@ -39,6 +40,7 @@ EST_Router::init();
 EST_Frontend::init();
 EST_Switcher::init();
 EST_Copies::init();
+EST_Seo::init();
 
 add_action( 'plugins_loaded', array( 'EST_Store', 'maybe_upgrade' ) );
 

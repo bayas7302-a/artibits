@@ -139,6 +139,11 @@ class EST_Transfer {
 				continue;
 			}
 			$report['sheets']++;
+			// SEO sheet: meta title / description per page, mapped by page ID.
+			if ( EST_Seo::is_seo_sheet( $rows ) ) {
+				$report['seo'] = ( $report['seo'] ?? 0 ) + EST_Seo::import_sheet( $rows, $overwrite );
+				continue;
+			}
 			$header = array_shift( $rows );
 			$map    = array();
 			foreach ( $header as $col => $cell ) {

@@ -17,10 +17,13 @@ class EST_Admin {
 		add_action( 'admin_post_est_import', array( __CLASS__, 'handle_import' ) );
 		add_action( 'admin_post_est_save_translations', array( __CLASS__, 'handle_save_translations' ) );
 		add_action( 'admin_post_est_save_images', array( __CLASS__, 'handle_save_images' ) );
+		add_action( 'admin_post_est_save_seo', array( __CLASS__, 'handle_save_seo' ) );
 		add_action( 'admin_post_est_create_copy', array( __CLASS__, 'handle_create_copy' ) );
-		add_filter( 'page_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
-		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
-		add_action( 'current_screen', array( __CLASS__, 'list_views' ) );
+		if ( EST_Copies::enabled() ) {
+			add_filter( 'page_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
+			add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 20, 2 );
+			add_action( 'current_screen', array( __CLASS__, 'list_views' ) );
+		}
 		add_action( 'admin_notices', array( __CLASS__, 'copy_notice' ) );
 		add_action( 'admin_post_est_save_settings', array( __CLASS__, 'handle_save_settings' ) );
 		add_action( 'admin_post_est_add_language', array( __CLASS__, 'handle_add_language' ) );
@@ -33,6 +36,7 @@ class EST_Admin {
 		add_submenu_page( 'est', __( 'Content & Export', 'est' ), __( 'Content & Export', 'est' ), self::CAP, 'est', array( __CLASS__, 'page_content' ) );
 		add_submenu_page( 'est', __( 'Import', 'est' ), __( 'Import', 'est' ), self::CAP, 'est-import', array( __CLASS__, 'page_import' ) );
 		add_submenu_page( 'est', __( 'Edit Translations', 'est' ), __( 'Edit Translations', 'est' ), self::CAP, 'est-editor', array( __CLASS__, 'page_editor' ) );
+		add_submenu_page( 'est', __( 'SEO', 'est' ), __( 'SEO', 'est' ), self::CAP, 'est-seo', array( __CLASS__, 'page_seo' ) );
 		add_submenu_page( 'est', __( 'Images', 'est' ), __( 'Images', 'est' ), self::CAP, 'est-images', array( __CLASS__, 'page_images' ) );
 		add_submenu_page( 'est', __( 'Languages & Settings', 'est' ), __( 'Languages & Settings', 'est' ), self::CAP, 'est-languages', array( __CLASS__, 'page_languages' ) );
 	}
@@ -71,6 +75,9 @@ class EST_Admin {
 			.est-wrap .est-order li { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 9px 12px; background: #f6f7f7; border: 1px solid #e2e4e7; border-radius: 6px; cursor: move; }
 			.est-wrap .est-order li .dashicons { color: #8c8f94; }
 			.est-wrap .est-order .ui-sortable-helper { box-shadow: 0 4px 12px rgba(0,0,0,.12); background: #fff; }
+			.est-wrap .est-seo td { vertical-align: top; }
+			.est-wrap .est-seo input, .est-wrap .est-seo textarea { margin-bottom: 2px; }
+			.est-wrap .est-counter { display: block; font-size: 11px; margin-bottom: 6px; }
 			.est-wrap code.est-big { font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 		</style>
 		<?php
@@ -165,7 +172,8 @@ class EST_Admin {
 					<p>
 						<label><input type="checkbox" name="include_existing" value="1" checked> <?php esc_html_e( 'Pre-fill translations that already exist (untick to get empty language cells)', 'est' ); ?></label><br>
 						<label><input type="checkbox" name="only_missing" value="1"> <?php esc_html_e( 'Only rows that still need a translation', 'est' ); ?></label><br>
-						<label><input type="checkbox" name="with_images" value="1"> <?php esc_html_e( 'Include image URLs (on a separate "Images" sheet)', 'est' ); ?></label>
+						<label><input type="checkbox" name="with_images" value="1"> <?php esc_html_e( 'Include image URLs (on a separate "Images" sheet)', 'est' ); ?></label><br>
+						<label><input type="checkbox" name="with_seo" value="1"> <?php esc_html_e( 'Include SEO meta titles and descriptions (on a separate "SEO" sheet)', 'est' ); ?></label>
 					</p>
 					<p><?php esc_html_e( 'Tick pages in the table below to export only those; with nothing ticked, everything is exported.', 'est' ); ?></p>
 					<?php submit_button( __( 'Download export', 'est' ), 'primary', 'submit', false ); ?>
@@ -226,7 +234,7 @@ class EST_Admin {
 								<a href="<?php echo esc_url( $dl . '&format=csv_single' ); ?>">CSV</a>
 								<?php if ( $langs ) : ?>
 									| <a href="<?php echo esc_url( admin_url( 'admin.php?page=est-editor&source=' . rawurlencode( $key ) ) ); ?>"><?php esc_html_e( 'Translate', 'est' ); ?></a>
-									<?php if ( 'post' === $s['kind'] && EST_Content::is_elementor( $s['id'] ) ) : ?>
+									<?php if ( EST_Copies::enabled() && 'post' === $s['kind'] && EST_Content::is_elementor( $s['id'] ) ) : ?>
 										<br><span class="est-muted"><?php esc_html_e( 'Separate design:', 'est' ); ?></span>
 										<?php
 										foreach ( $langs as $code => $l ) {
@@ -276,6 +284,20 @@ class EST_Admin {
 
 		if ( ( 'xlsx' === $fmt || 'zip' === $fmt ) && ! EST_Sheets::can_zip() ) {
 			$fmt = 'csv_single';
+		}
+
+		if ( ! empty( $_REQUEST['with_seo'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$seo = EST_Seo::build_sheet( $codes, $fill );
+			// The SEO sheet has its own layout, so a single CSV becomes a ZIP of two CSVs.
+			if ( ( 'csv_single' === $fmt || 'csv' === $fmt ) && EST_Sheets::can_zip() ) {
+				$sheets = array(
+					'Content' => EST_Transfer::merge_sheets( $sheets ),
+					'SEO'     => $seo,
+				);
+				$fmt    = 'zip';
+			} else {
+				$sheets['SEO'] = $seo;
+			}
 		}
 
 		if ( 'csv_single' === $fmt || 'csv' === $fmt ) {
@@ -339,6 +361,9 @@ class EST_Admin {
 						<?php endforeach; ?>
 						<?php if ( ! $report['saved'] ) : ?>
 							<li><?php esc_html_e( 'No translations found. Make sure the language columns (B, C...) are filled in.', 'est' ); ?></li>
+						<?php endif; ?>
+						<?php if ( ! empty( $report['seo'] ) ) : ?>
+							<li><?php echo (int) $report['seo']; ?> <?php esc_html_e( 'SEO meta values saved', 'est' ); ?></li>
 						<?php endif; ?>
 						<?php if ( ! empty( $report['images'] ) ) : ?>
 							<li><?php echo (int) $report['images']; ?> <?php esc_html_e( 'image replacements saved', 'est' ); ?></li>
@@ -530,7 +555,7 @@ class EST_Admin {
 
 	public static function handle_create_copy() {
 		$source = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! current_user_can( 'edit_post', $source ) ) {
+		if ( ! EST_Copies::enabled() || ! current_user_can( 'edit_post', $source ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'est' ) );
 		}
 		check_admin_referer( 'est_create_copy' );
@@ -615,6 +640,89 @@ class EST_Admin {
 				esc_html__( 'Edit the original', 'est' )
 			);
 		}
+	}
+
+	/* =====================================================================
+	 * SEO meta per language
+	 * ================================================================== */
+
+	public static function page_seo() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		$all  = EST_Settings::switcher_languages();
+		$code = isset( $_GET['lang'] ) ? sanitize_text_field( wp_unslash( $_GET['lang'] ) ) : (string) key( EST_Settings::languages() ? EST_Settings::languages() : $all );
+		// phpcs:enable
+		$code   = isset( $all[ $code ] ) ? $code : (string) key( $all );
+		$lang   = $all[ $code ];
+		$source = EST_Settings::default_code();
+		?>
+		<div class="wrap est-wrap">
+			<h1><?php esc_html_e( 'SEO meta', 'est' ); ?></h1>
+			<?php self::notice(); ?>
+			<p class="est-muted"><?php esc_html_e( 'Meta title and description per page for each language. Leave a field empty to keep the page\'s normal title / description. Works on its own, and together with Yoast SEO or Rank Math. You can also export and import these on the "SEO" sheet.', 'est' ); ?></p>
+
+			<form method="get" class="est-card">
+				<input type="hidden" name="page" value="est-seo">
+				<?php foreach ( $all as $c => $l ) : ?>
+					<a class="button<?php echo $c === $code ? ' button-primary' : ''; ?>" href="<?php echo esc_url( admin_url( 'admin.php?page=est-seo&lang=' . rawurlencode( $c ) ) ); ?>"><?php echo esc_html( EST_Settings::header_label( $l ) ); ?></a>
+				<?php endforeach; ?>
+			</form>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'est_save_seo' ); ?>
+				<input type="hidden" name="action" value="est_save_seo">
+				<input type="hidden" name="lang" value="<?php echo esc_attr( $code ); ?>">
+				<table class="widefat striped est-seo">
+					<thead><tr>
+						<th style="width:22%"><?php esc_html_e( 'Page', 'est' ); ?></th>
+						<th><?php echo esc_html( sprintf( /* translators: %s: language */ __( 'Meta title and description - %s', 'est' ), $lang['name'] ) ); ?></th>
+					</tr></thead>
+					<tbody>
+					<?php foreach ( EST_Seo::pages() as $id => $title ) : ?>
+						<?php
+						$v   = EST_Seo::get( $id, $code );
+						$ref = EST_Seo::get( $id, $source );
+						$def = EST_Seo::source_defaults( $id );
+						$ref_title = '' !== $ref['title'] ? $ref['title'] : $def['title'];
+						$ref_desc  = '' !== $ref['desc'] ? $ref['desc'] : $def['desc'];
+						?>
+						<tr>
+							<td><strong><?php echo esc_html( $title ); ?></strong><br><span class="est-muted"><?php echo esc_html( get_post_type_object( get_post_type( $id ) )->labels->singular_name ); ?></span></td>
+							<td dir="<?php echo esc_attr( 'rtl' === $lang['dir'] ? 'rtl' : 'ltr' ); ?>">
+								<input type="text" class="large-text est-count" data-max="60" name="seo[<?php echo (int) $id; ?>][title]" value="<?php echo esc_attr( $v['title'] ); ?>" placeholder="<?php echo esc_attr( $code !== $source && '' !== $ref_title ? $ref_title : __( 'Meta title', 'est' ) ); ?>">
+								<textarea class="large-text est-count" data-max="160" rows="2" name="seo[<?php echo (int) $id; ?>][desc]" placeholder="<?php echo esc_attr( $code !== $source && '' !== $ref_desc ? $ref_desc : __( 'Meta description', 'est' ) ); ?>"><?php echo esc_textarea( $v['desc'] ); ?></textarea>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php submit_button( __( 'Save SEO meta', 'est' ) ); ?>
+			</form>
+			<script>
+			document.querySelectorAll( '.est-count' ).forEach( function ( el ) {
+				var n = document.createElement( 'span' ); n.className = 'est-muted est-counter'; el.after( n );
+				var upd = function () { var l = el.value.length, m = +el.dataset.max; n.textContent = l + ' / ' + m; n.style.color = l > m ? '#b32d2e' : ''; };
+				el.addEventListener( 'input', upd ); upd();
+			} );
+			</script>
+		</div>
+		<?php
+	}
+
+	public static function handle_save_seo() {
+		self::check( 'est_save_seo' );
+		$code = isset( $_POST['lang'] ) ? sanitize_text_field( wp_unslash( $_POST['lang'] ) ) : '';
+		if ( ! EST_Settings::is_live_code( $code ) ) {
+			self::back( 'est-seo', __( 'Unknown language.', 'est' ), true );
+		}
+		$in    = isset( $_POST['seo'] ) ? (array) wp_unslash( $_POST['seo'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$pages = EST_Seo::pages();
+		foreach ( $in as $id => $v ) {
+			if ( isset( $pages[ (int) $id ] ) && current_user_can( 'edit_post', (int) $id ) ) {
+				EST_Seo::set( (int) $id, $code, (string) ( $v['title'] ?? '' ), (string) ( $v['desc'] ?? '' ) );
+			}
+		}
+		self::flush_caches();
+		self::back( 'est-seo', __( 'SEO meta saved.', 'est' ), false, array( 'lang' => $code ) );
 	}
 
 	/* =====================================================================
@@ -863,6 +971,7 @@ class EST_Admin {
 						</select></label><br>
 						<span class="est-muted"><?php esc_html_e( 'The language shown at the main address (e.g. site.com/). Every other language, including the one the pages are written in, gets its own prefix (e.g. /en/). Pages are still edited in the source language and the spreadsheets do not change.', 'est' ); ?></span>
 					</p>
+					<p><label><input type="checkbox" name="enable_copies" value="1" <?php checked( ! empty( $s['enable_copies'] ) ); ?>> <?php esc_html_e( 'Allow a separate Elementor design per language ("Create AR version"). Leave off to translate only from the spreadsheets, with no language editing in the Elementor editor.', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="localize_links" value="1" <?php checked( $s['localize_links'] ); ?>> <?php esc_html_e( 'Keep visitors in their language: rewrite internal links on translated pages (e.g. /contact-us/ becomes /ar/contact-us/).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="html_fallback" value="1" <?php checked( $s['html_fallback'] ); ?>> <?php esc_html_e( 'Also translate matching plain text in the final page HTML (catches theme and widget texts that are not stored in Elementor data).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="hreflang" value="1" <?php checked( $s['hreflang'] ); ?>> <?php esc_html_e( 'Output hreflang links for SEO.', 'est' ); ?></label></p>
@@ -965,6 +1074,7 @@ class EST_Admin {
 				'front_code'       => $front,
 				'lang_order'       => $order,
 				'html_fallback'    => empty( $p['html_fallback'] ) ? 0 : 1,
+				'enable_copies'    => empty( $p['enable_copies'] ) ? 0 : 1,
 				'localize_links'   => empty( $p['localize_links'] ) ? 0 : 1,
 				'hreflang'         => empty( $p['hreflang'] ) ? 0 : 1,
 				'delete_uninstall' => empty( $p['delete_uninstall'] ) ? 0 : 1,

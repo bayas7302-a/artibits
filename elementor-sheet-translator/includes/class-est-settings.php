@@ -21,6 +21,7 @@ class EST_Settings {
 			'default_dir'      => 'ltr',
 			'front_code'       => '',
 			'lang_order'       => array(),
+			'enable_copies'    => 0,
 			'languages'        => array(),
 			'extra_keys'       => '',
 			'html_fallback'    => 1,

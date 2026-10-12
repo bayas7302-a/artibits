@@ -21,15 +21,27 @@ class EST_Copies {
 
 	private static $map = null;
 
+	/** "Separate design per language" switched on in the settings? */
+	public static function enabled() {
+		return (bool) EST_Settings::get( 'enable_copies' );
+	}
+
 	public static function init() {
-		add_filter( 'elementor/documents/get/post_id', array( __CLASS__, 'swap_document' ) );
-		add_filter( 'the_title', array( __CLASS__, 'copy_title' ), 15, 2 );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_copy_css' ), 30 );
+		// Always on, so copies made earlier never become stray public pages.
 		add_action( 'template_redirect', array( __CLASS__, 'redirect_copy_urls' ), 1 );
 		add_filter( 'wp_sitemaps_posts_query_args', array( __CLASS__, 'exclude_from_queries' ) );
 		add_action( 'pre_get_posts', array( __CLASS__, 'hide_copies' ) );
 		add_action( 'wp_trash_post', array( __CLASS__, 'trash_copies' ) );
 		add_action( 'before_delete_post', array( __CLASS__, 'delete_copies' ) );
+
+		// Off by default: the site is translated from the sheets only, and the
+		// Elementor editor gets no language bar or per-language editing.
+		if ( ! self::enabled() ) {
+			return;
+		}
+		add_filter( 'elementor/documents/get/post_id', array( __CLASS__, 'swap_document' ) );
+		add_filter( 'the_title', array( __CLASS__, 'copy_title' ), 15, 2 );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_copy_css' ), 30 );
 		add_action( 'admin_bar_menu', array( __CLASS__, 'admin_bar' ), 90 );
 		foreach ( array( 'page_link', 'post_link', 'post_type_link' ) as $hook ) {
 			add_filter( $hook, array( __CLASS__, 'copy_permalink' ), 20, 2 );
@@ -339,7 +351,7 @@ class EST_Copies {
 	/** Floating language bar inside the Elementor editor. */
 	public static function editor_bar() {
 		$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! $post_id || ! EST_Settings::languages() ) {
+		if ( ! self::enabled() || ! $post_id || ! EST_Settings::languages() ) {
 			return;
 		}
 		echo '<div id="est-editor-langs" style="position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;gap:4px;padding:4px;background:#1f2124;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);font:600 12px/1 sans-serif">';
