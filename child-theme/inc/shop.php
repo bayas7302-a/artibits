@@ -677,7 +677,8 @@ function fvs_render_card( $product ) {
 
 	/* Image carousel */
 	echo '<div class="fvs-media" data-fvs-carousel>';
-	if ( $product->is_on_sale() ) {
+	$is_promo = has_term( FVS_PROMO_TERM, FVS_PROMO_TAX, $product->get_id() );
+	if ( $product->is_on_sale() && ! $is_promo ) { // promotion cards show the offer end date instead
 		$regular = (float) $product->get_regular_price();
 		$sale    = (float) $product->get_sale_price();
 		$badge   = ( $regular > 0 && $sale > 0 && $sale < $regular ) ? '−' . round( ( 1 - $sale / $regular ) * 100 ) . '%' : 'Sale';
@@ -723,6 +724,9 @@ function fvs_render_card( $product ) {
 		if ( fvs_show_excl_vat() ) {
 			echo '<span class="fvs-card__tax">excl. VAT</span>';
 		}
+		if ( $is_promo ) {
+			echo fvs_offer_ends_html( $product ); // phpcs:ignore
+		}
 		echo '</div>';
 	} else {
 		echo '<div class="fvs-card__price fvs-card__price--poa">Price on request</div>';
@@ -738,6 +742,14 @@ function fvs_render_card( $product ) {
 	echo '</div></li>';
 }
 
+
+/* "Offer ends 30 October 2026" on promotion cards (from the sale end date) */
+function fvs_offer_ends_html( $product ) {
+	if ( ! $product->is_on_sale() ) return '';
+	$end = $product->get_date_on_sale_to();
+	if ( ! $end || $end->getTimestamp() <= time() ) return '';
+	return '<span class="fvs-card__offer">Offer ends <strong>' . esc_html( wc_format_datetime( $end, 'j F Y' ) ) . '</strong></span>';
+}
 
 /* "excl. VAT" is shown unless WooCommerce is set to display prices including tax */
 function fvs_show_excl_vat() {
@@ -924,6 +936,8 @@ function fvs_print_assets() {
 
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
+.fvs-card__offer{display:block;margin-top:6px;font-size:13px;font-weight:400;color:var(--fvs-red)}
+.fvs-card__offer strong{font-weight:600}
 .fvs-badge{position:absolute;top:12px;left:12px;z-index:2;padding:4px 10px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:12px;font-weight:600;line-height:1.3}
 .fvs-media{position:relative;background:var(--fvs-soft);overflow:hidden;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 .fvs .fvs-media__link,.fvs .fvs-media__link:focus{display:block;outline:none;border:0;box-shadow:none}
