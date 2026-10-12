@@ -219,17 +219,12 @@ function fvp_offer_banner( $product ) {
 	$days    = (int) floor( $left / DAY_IN_SECONDS );
 	$fallback = $days >= 1 ? sprintf( _n( '%d day left', '%d days left', $days ), $days ) : 'Ends today';
 
-	$clock = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l2.5 2.5M9 2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 	ob_start();
 	?>
 	<div class="fvp-offer" data-fvp-offer-end="<?php echo (int) $end->getTimestamp(); ?>">
-		<span class="fvp-offer__icon"><?php echo $clock; // phpcs:ignore ?></span>
-		<div class="fvp-offer__text">
-			<strong class="fvp-offer__title">Limited-time offer</strong>
-			<span class="fvp-offer__date">Ends <?php echo esc_html( wc_format_datetime( $end, 'j F Y' ) ); ?>
-				<?php if ( $save > 0 ) : ?> · You save <?php echo wp_kses_post( wc_price( $save ) ); ?><?php endif; ?></span>
-		</div>
-		<span class="fvp-offer__count" aria-live="off"><?php echo esc_html( $fallback ); ?></span>
+		<span class="fvp-offer__tag"><?php echo $save > 0 ? 'Save ' . wp_kses_post( wc_price( $save ) ) : 'Offer price'; ?></span>
+		<span class="fvp-offer__ends">Offer ends <?php echo esc_html( wc_format_datetime( $end, 'j F Y' ) ); ?></span>
+		<span class="fvp-offer__count"><?php echo esc_html( $fallback ); ?></span>
 	</div>
 	<script>
 	(function () {
@@ -357,15 +352,11 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
 .fvp-price.fvs-card__price--poa{font-size:17px;margin-bottom:0}
 .fvp-price del{color:var(--fvs-muted);font-weight:400;font-size:17px;margin-right:8px}
 .fvp-price ins{text-decoration:none}
-.fvp-offer{display:flex;align-items:center;gap:14px;margin:0 0 18px;padding:14px 16px;border:1px solid #F5C2C4;border-left:4px solid var(--fvs-red);border-radius:14px;background:#FDECEC}
-.fvp-offer__icon{display:flex;flex:0 0 auto;color:var(--fvs-red)}
-.fvp-offer__text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
-.fvp-offer__title{font-size:15px;font-weight:700;color:var(--fvs-red);text-transform:uppercase;letter-spacing:.04em}
-.fvp-offer__date{font-size:14px;color:var(--fvs-ink)}
-.fvp-offer__date .amount{font-weight:600}
-.fvp-offer__count{flex:0 0 auto;padding:7px 12px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-.fvp-offer.is-ended{opacity:.6}
-@media (max-width:480px){.fvp-offer{flex-wrap:wrap;row-gap:10px}.fvp-offer__text{flex:1 1 calc(100% - 40px)}.fvp-offer__count{margin-left:36px}}
+.fvp-offer{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 20px;font-size:14px;color:var(--fvs-ink)}
+.fvp-offer__tag{padding:4px 9px;border-radius:4px;background:var(--fvs-red);color:#fff;font-size:13px;font-weight:700}
+.fvp-offer__tag .amount{color:inherit}
+.fvp-offer__count{font-weight:700;color:var(--fvs-red);font-variant-numeric:tabular-nums}
+.fvp-offer.is-ended .fvp-offer__tag{background:#999}
 .fvp-actions{max-width:380px}
 .fvp .fvs-btn--cart{height:46px}
 .fvp .fvs-qty{height:46px}
