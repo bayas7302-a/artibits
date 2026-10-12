@@ -14,11 +14,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *   cards 3 per row on desktop, 2 on tablet, 1 on phones (soonest first),
  *   9 cards per page with page numbers (FVE_PER_PAGE; ?when=past&pg=2).
  *   Only the title is required; empty date/time/location are not shown.
+ *   Past events stay visible for one month after their last day, then drop off
+ *   the page automatically (FVE_KEEP_PAST); they are not deleted.
  *   Clicking a card opens a popup with the full description.
  * - An event's own link (/events/name/) opens the events page with its popup.
  * ======================================================================== */
 define( 'FVE_TYPE', 'fanvil_event' );
 define( 'FVE_PER_PAGE', 9 ); // event cards per page
+define( 'FVE_KEEP_PAST', '+1 month' ); // past events stay visible this long after their last day
+
+/* Last day an event is shown on the site (e.g. event on Oct 10 → shown until Nov 10), '' = no date */
+function fve_visible_until( $event_id ) {
+	$last = get_post_meta( $event_id, '_fve_end', true ) ?: get_post_meta( $event_id, '_fve_start', true );
+	return $last ? gmdate( 'Y-m-d', strtotime( $last . ' 12:00:00 ' . FVE_KEEP_PAST ) ) : '';
+}
 
 /* Events page URL that shows a given event (right tab + page) with its popup open */
 function fve_event_url( $event_id ) {
@@ -32,6 +41,7 @@ function fve_event_url( $event_id ) {
 		return $is_past( $id ) === $past;
 	} ) );
 	$pos   = array_search( (int) $event_id, array_map( 'intval', $list ), true );
+	if ( false === $pos ) return get_post_type_archive_link( FVE_TYPE ); // no longer shown
 	$page  = false === $pos ? 1 : (int) floor( $pos / FVE_PER_PAGE ) + 1;
 	$args  = array();
 	if ( $past ) $args['when'] = 'past';
@@ -152,7 +162,15 @@ add_filter( 'manage_' . FVE_TYPE . '_posts_columns', function ( $cols ) {
 	return $out;
 } );
 add_action( 'manage_' . FVE_TYPE . '_posts_custom_column', function ( $col, $post_id ) {
-	if ( 'fve_date' === $col ) echo esc_html( fve_date_label( $post_id, true ) );
+	if ( 'fve_date' === $col ) {
+		echo esc_html( fve_date_label( $post_id, true ) );
+		$until = fve_visible_until( $post_id );
+		if ( $until && $until < wp_date( 'Y-m-d' ) ) {
+			echo '<br><span style="color:#8A8A8A">Hidden from the site (over a month ago)</span>';
+		} elseif ( $until && ( get_post_meta( $post_id, '_fve_end', true ) ?: get_post_meta( $post_id, '_fve_start', true ) ) < wp_date( 'Y-m-d' ) ) {
+			echo '<br><span style="color:#8A8A8A">Past – shown until ' . esc_html( date_i18n( wc_date_format(), strtotime( $until . ' 12:00:00' ) ) ) . '</span>';
+		}
+	}
 	if ( 'fve_location' === $col ) echo esc_html( get_post_meta( $post_id, '_fve_location', true ) );
 }, 10, 2 );
 add_action( 'pre_get_posts', function ( $q ) {
@@ -193,6 +211,8 @@ function fve_get_events( $limit = -1, $show_past = true ) {
 		$start = get_post_meta( $id, '_fve_start', true );
 		$last  = get_post_meta( $id, '_fve_end', true ) ?: $start;
 		if ( $last && $last < $today ) {
+			$until = fve_visible_until( $id );
+			if ( $until && $until < $today ) continue; // more than a month ago → no longer shown
 			$past[ $id ] = $start;
 		} else {
 			$up[ $id ] = $start ? $start : '9999-12-31'; // no date yet → last of the upcoming
