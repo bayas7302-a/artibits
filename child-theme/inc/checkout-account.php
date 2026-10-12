@@ -417,13 +417,41 @@ add_action( 'wp', function () {
     }
 } );
 
-/* Phone number is required */
+/* Phone number is required – also overrides the Customizer "Phone field" setting,
+   which Stripe Apple Pay / Google Pay use to decide whether to ask for a phone */
+add_filter( 'pre_option_woocommerce_checkout_phone_field', function () {
+    return 'required';
+} );
 add_filter( 'woocommerce_billing_fields', function ( $fields ) {
-    if ( isset( $fields['billing_phone'] ) ) {
-        $fields['billing_phone']['required'] = true;
+    if ( ! isset( $fields['billing_phone'] ) ) {
+        $fields['billing_phone'] = array(
+            'label'        => __( 'Phone', 'woocommerce' ),
+            'type'         => 'tel',
+            'class'        => array( 'form-row-wide' ),
+            'validate'     => array( 'phone' ),
+            'autocomplete' => 'tel',
+            'priority'     => 100,
+        );
     }
+    $fields['billing_phone']['required'] = true;
+    $fields['billing_phone']['custom_attributes'] = array_merge(
+        isset( $fields['billing_phone']['custom_attributes'] ) ? (array) $fields['billing_phone']['custom_attributes'] : array(),
+        array( 'required' => 'required', 'minlength' => '7' )
+    );
     return $fields;
 }, 20 );
+
+/* Phone must have at least 7 digits */
+add_action( 'woocommerce_after_checkout_validation', function ( $data, $errors ) {
+    $phone = isset( $data['billing_phone'] ) ? preg_replace( '/\D/', '', (string) $data['billing_phone'] ) : '';
+    if ( '' === $phone ) {
+        if ( ! $errors->get_error_message( 'billing_phone_required' ) ) {
+            $errors->add( 'billing_phone_required', '<strong>Phone</strong> is a required field.' );
+        }
+    } elseif ( strlen( $phone ) < 7 ) {
+        $errors->add( 'billing_phone_validation', 'Please enter a valid <strong>phone number</strong>.' );
+    }
+}, 10, 2 );
 
 /* ---------------------------------------------------------------------------
  * Delivery address: "Delivery address same as billing address" (ticked).
