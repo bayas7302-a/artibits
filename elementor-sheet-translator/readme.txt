@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.8.1
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -93,4 +93,4 @@ the sheet; the import creates the language for you.
   (source language included), with character counters. Replaces the <title> and meta
   description on that language's pages - on its own, or through Yoast SEO / Rank Math.
   Export with "Include SEO meta" to get a separate "SEO" sheet (SEO page | Field |
-  English | Arabic | ...); importing it maps the values back to each page by its ID.
+  English | Arabic | ...); importing it maps the values back to each page by its ID or by its address (e.g. /about/ or /en/about/).

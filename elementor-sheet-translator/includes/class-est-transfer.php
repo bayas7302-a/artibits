@@ -142,6 +142,9 @@ class EST_Transfer {
 			// SEO sheet: meta title / description per page, mapped by page ID.
 			if ( EST_Seo::is_seo_sheet( $rows ) ) {
 				$report['seo'] = ( $report['seo'] ?? 0 ) + EST_Seo::import_sheet( $rows, $overwrite );
+				if ( EST_Seo::$unmatched ) {
+					$report['messages'][] = sprintf( 'SEO: no page found for %s', implode( ', ', array_keys( EST_Seo::$unmatched ) ) );
+				}
 				continue;
 			}
 			$header = array_shift( $rows );

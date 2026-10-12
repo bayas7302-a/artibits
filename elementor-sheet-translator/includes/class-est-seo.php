@@ -187,6 +187,42 @@ class EST_Seo {
 		return $rows;
 	}
 
+	/** Column A values that matched no page in the last import. */
+	public static $unmatched = array();
+
+	/**
+	 * Column A -> post ID. Accepts "Page title #123", a page address such as
+	 * "/about/" or "/en/about/" (language prefix ignored, "/" = home page)
+	 * or a full URL.
+	 */
+	public static function resolve_page( $cell ) {
+		$cell = trim( $cell );
+		if ( preg_match( '/#(\d+)\s*$/', $cell, $m ) ) {
+			return get_post( (int) $m[1] ) ? (int) $m[1] : 0;
+		}
+		if ( '' === $cell || ( '/' !== $cell[0] && ! preg_match( '#^https?://#i', $cell ) ) ) {
+			return 0;
+		}
+		$path = (string) wp_parse_url( $cell, PHP_URL_PATH );
+		$home = rtrim( (string) wp_parse_url( get_option( 'home' ), PHP_URL_PATH ), '/' );
+		if ( '' !== $home && 0 === strpos( $path, $home . '/' ) ) {
+			$path = substr( $path, strlen( $home ) );
+		}
+		if ( preg_match( '#^/([a-z]{2,3}(?:-[a-z0-9]{2,4})?)(/|$)#i', $path, $m ) && EST_Settings::is_live_code( strtolower( $m[1] ) ) ) {
+			$path = substr( $path, strlen( $m[1] ) + 1 );
+		}
+		$slug = trim( $path, '/' );
+		if ( '' === $slug ) {
+			return 'page' === get_option( 'show_on_front' ) ? (int) get_option( 'page_on_front' ) : 0;
+		}
+		$id = url_to_postid( rtrim( get_option( 'home' ), '/' ) . '/' . $slug . '/' );
+		if ( ! $id ) {
+			$post = get_page_by_path( $slug, OBJECT, array_values( get_post_types( array( 'public' => true ) ) ) );
+			$id   = $post ? $post->ID : 0;
+		}
+		return (int) $id;
+	}
+
 	public static function is_seo_sheet( array $rows ) {
 		return isset( $rows[0][0] ) && 0 === stripos( trim( (string) $rows[0][0] ), 'SEO page' );
 	}
@@ -204,12 +240,16 @@ class EST_Seo {
 				$map[ $col ] = $code;
 			}
 		}
-		$saved = 0;
+		$saved           = 0;
+		self::$unmatched = array();
 		foreach ( $rows as $row ) {
-			if ( ! preg_match( '/#(\d+)\s*$/', (string) ( $row[0] ?? '' ), $m ) || ! get_post( (int) $m[1] ) ) {
+			$id = self::resolve_page( (string) ( $row[0] ?? '' ) );
+			if ( ! $id ) {
+				if ( '' !== trim( (string) ( $row[0] ?? '' ) ) ) {
+					self::$unmatched[ trim( (string) $row[0] ) ] = true;
+				}
 				continue;
 			}
-			$id    = (int) $m[1];
 			$field = false !== stripos( (string) ( $row[1] ?? '' ), 'desc' ) ? 'desc' : 'title';
 			foreach ( $map as $col => $code ) {
 				$value = trim( (string) ( $row[ $col ] ?? '' ) );
