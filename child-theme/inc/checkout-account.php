@@ -410,6 +410,81 @@ function soharon_render_thankyou() {
     <?php
 }
 
+/* No "Have a coupon? Click here" bar on the checkout */
+add_action( 'wp', function () {
+    if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+        remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_coupon_form', 10 );
+    }
+} );
+
+/* Phone number is required */
+add_filter( 'woocommerce_billing_fields', function ( $fields ) {
+    if ( isset( $fields['billing_phone'] ) ) {
+        $fields['billing_phone']['required'] = true;
+    }
+    return $fields;
+}, 20 );
+
+/* ---------------------------------------------------------------------------
+ * Delivery address: "Delivery address same as billing address" (ticked).
+ * Untick → delivery address fields. The store has no shipping methods, so
+ * WooCommerce would hide the delivery address everywhere – these filters keep
+ * the form on the checkout and show the address on orders, emails and My Account.
+ * ------------------------------------------------------------------------ */
+add_filter( 'woocommerce_cart_needs_shipping_address', function ( $needs ) {
+    if ( $needs || wc_ship_to_billing_address_only() ) return $needs; // respect "Force shipping to billing address"
+    return ( WC()->cart && ! WC()->cart->is_empty() && WC()->cart->needs_shipping() === false )
+        ? soharon_cart_has_physical_items()
+        : $needs;
+} );
+function soharon_cart_has_physical_items() {
+    foreach ( WC()->cart->get_cart() as $item ) {
+        if ( ! empty( $item['data'] ) && $item['data']->needs_shipping() ) return true;
+    }
+    return false;
+}
+/* Orders without a shipping method still show their delivery address (thank-you page, emails, My Account, admin) */
+add_filter( 'woocommerce_order_needs_shipping_address', function ( $needs, $hide, $order ) {
+    return $needs || ( $order instanceof WC_Order && $order->has_shipping_address() );
+}, 10, 3 );
+
+/* Our checkbox, before WooCommerce's (hidden) "Ship to a different address?" */
+add_action( 'woocommerce_checkout_shipping', function () {
+    if ( ! WC()->cart || ! WC()->cart->needs_shipping_address() ) return;
+    echo '<p class="soharon-same-address"><label><input type="checkbox" id="soharon-same-address" checked> <span>Delivery address same as billing address</span></label></p>';
+}, 5 );
+add_action( 'woocommerce_before_checkout_shipping_form', function () {
+    echo '<h3 class="soharon-delivery-title">Delivery address</h3>';
+} );
+add_filter( 'woocommerce_shipping_fields', function ( $fields ) {
+    foreach ( $fields as $key => $field ) { // "Shipping" → "Delivery" in this form
+        if ( isset( $field['label'] ) ) $fields[ $key ]['label'] = str_replace( 'Shipping', 'Delivery', $field['label'] );
+    }
+    return $fields;
+} );
+/* Keep both checkboxes in sync: ours ticked = WooCommerce's "different address" unticked */
+add_action( 'wp_footer', function () {
+    if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || is_wc_endpoint_url( 'order-received' ) ) return;
+    ?>
+    <script>
+    (function () {
+        function sync() {
+            var mine = document.getElementById('soharon-same-address');
+            var wc   = document.getElementById('ship-to-different-address-checkbox');
+            if (!mine || !wc) return;
+            mine.checked = !wc.checked;
+            mine.onchange = function () {
+                wc.checked = !mine.checked;
+                if (window.jQuery) { jQuery(wc).trigger('change'); } else { wc.dispatchEvent(new Event('change', { bubbles: true })); }
+            };
+        }
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', sync); } else { sync(); }
+        if (window.jQuery) jQuery(document.body).on('updated_checkout', sync);
+    })();
+    </script>
+    <?php
+}, 30 );
+
 /* Payment options, terms and "Place order" in the LEFT card (under Additional information)
    instead of under the order summary. Still inside the checkout form, and WooCommerce keeps
    refreshing it in place (it updates ".woocommerce-checkout-payment" wherever it is). */
@@ -456,8 +531,11 @@ function soharon_checkout_css() {
 {S} #customer_details .col-1,{S} #customer_details .col-2{ float:none; width:100%; max-width:none; padding:0; }
 {S} #customer_details .col-2{ margin-top:8px; padding-top:24px; border-top:1px solid var(--s-border); }
 {S} #customer_details .col-2:empty{ display:none; }
-{S} #ship-to-different-address{ margin:0 0 16px; font-size:16px; }
-{S} #ship-to-different-address label{ display:inline-flex; align-items:center; gap:10px; font-weight:600; cursor:pointer; }
+{S} #ship-to-different-address{ display:none; } /* replaced by "Delivery address same as billing address" */
+{S} .soharon-same-address{ margin:0 0 18px; }
+{S} .soharon-same-address label{ display:inline-flex; align-items:center; gap:10px; margin:0; font-size:15px; font-weight:600; color:var(--s-text); cursor:pointer; }
+{S} .soharon-delivery-title{ margin:4px 0 16px; font-size:18px; font-weight:600; }
+{S} .shipping_address{ padding-bottom:4px; }
 
 {S} #order_review_heading{
     grid-area:heading; margin:0; padding:28px 28px 8px; background:#fff;

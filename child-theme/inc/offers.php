@@ -296,6 +296,7 @@ function soharon_offers_bar( $back_url ) {
 /* Checkout: bar above the form */
 add_action( 'woocommerce_before_checkout_form', function () {
 	if ( is_wc_endpoint_url( 'order-pay' ) ) return;
+	if ( ! is_user_logged_in() ) return; // checkout: no "Log in to see your offers" bar for guests
 	soharon_offers_print_assets();
 	echo soharon_offers_bar( wc_get_checkout_url() ); // phpcs:ignore
 }, 5 );
