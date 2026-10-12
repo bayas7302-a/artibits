@@ -136,6 +136,7 @@ function fvp_product_shortcode_render( $atts ) {
 			echo '<span class="fvs-card__tax">excl. VAT</span>';
 		}
 		echo '</div>';
+		echo fvp_offer_banner( $product ); // phpcs:ignore – "Limited-time offer · ends …" while a dated sale runs
 	} else {
 		echo '<div class="fvp-price fvs-card__price--poa">Price on request</div>';
 	}
@@ -200,6 +201,55 @@ function fvp_product_shortcode_render( $atts ) {
 	return ob_get_clean();
 }
 
+
+/**
+ * Offer banner on the product page, from the product's sale end date
+ * (Product data → General → Sale price → Schedule). Shows the end date,
+ * the saving and a live countdown; disappears by itself when the sale ends.
+ */
+function fvp_offer_banner( $product ) {
+	if ( ! $product->is_on_sale() || ! $product->is_type( 'simple' ) ) return '';
+	$end = $product->get_date_on_sale_to();
+	if ( ! $end || $end->getTimestamp() <= time() ) return '';
+
+	$regular = (float) wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
+	$sale    = (float) wc_get_price_to_display( $product, array( 'price' => $product->get_sale_price() ) );
+	$save    = $regular > $sale ? $regular - $sale : 0;
+	$left    = $end->getTimestamp() - time();
+	$days    = (int) floor( $left / DAY_IN_SECONDS );
+	$fallback = $days >= 1 ? sprintf( _n( '%d day left', '%d days left', $days ), $days ) : 'Ends today';
+
+	$clock = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l2.5 2.5M9 2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+	ob_start();
+	?>
+	<div class="fvp-offer" data-fvp-offer-end="<?php echo (int) $end->getTimestamp(); ?>">
+		<span class="fvp-offer__icon"><?php echo $clock; // phpcs:ignore ?></span>
+		<div class="fvp-offer__text">
+			<strong class="fvp-offer__title">Limited-time offer</strong>
+			<span class="fvp-offer__date">Ends <?php echo esc_html( wc_format_datetime( $end, 'j F Y' ) ); ?>
+				<?php if ( $save > 0 ) : ?> · You save <?php echo wp_kses_post( wc_price( $save ) ); ?><?php endif; ?></span>
+		</div>
+		<span class="fvp-offer__count" aria-live="off"><?php echo esc_html( $fallback ); ?></span>
+	</div>
+	<script>
+	(function () {
+		var box = document.currentScript && document.currentScript.previousElementSibling;
+		if (!box || !box.hasAttribute('data-fvp-offer-end')) return;
+		var end = parseInt(box.getAttribute('data-fvp-offer-end'), 10) * 1000, out = box.querySelector('.fvp-offer__count');
+		function pad(n) { return (n < 10 ? '0' : '') + n; }
+		function tick() {
+			var s = Math.max(0, Math.floor((end - Date.now()) / 1000));
+			if (!s) { out.textContent = 'Offer ended'; box.classList.add('is-ended'); return; }
+			var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+			out.textContent = (d ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm left';
+			setTimeout(tick, 30000);
+		}
+		tick();
+	})();
+	</script>
+	<?php
+	return ob_get_clean();
+}
 
 /**
  * Related products: only from the product's own (deepest) category,
@@ -307,6 +357,15 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
 .fvp-price.fvs-card__price--poa{font-size:17px;margin-bottom:0}
 .fvp-price del{color:var(--fvs-muted);font-weight:400;font-size:17px;margin-right:8px}
 .fvp-price ins{text-decoration:none}
+.fvp-offer{display:flex;align-items:center;gap:14px;margin:0 0 18px;padding:14px 16px;border:1px solid #F5C2C4;border-left:4px solid var(--fvs-red);border-radius:14px;background:#FDECEC}
+.fvp-offer__icon{display:flex;flex:0 0 auto;color:var(--fvs-red)}
+.fvp-offer__text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.fvp-offer__title{font-size:15px;font-weight:700;color:var(--fvs-red);text-transform:uppercase;letter-spacing:.04em}
+.fvp-offer__date{font-size:14px;color:var(--fvs-ink)}
+.fvp-offer__date .amount{font-weight:600}
+.fvp-offer__count{flex:0 0 auto;padding:7px 12px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fvp-offer.is-ended{opacity:.6}
+@media (max-width:480px){.fvp-offer{flex-wrap:wrap;row-gap:10px}.fvp-offer__text{flex:1 1 calc(100% - 40px)}.fvp-offer__count{margin-left:36px}}
 .fvp-actions{max-width:380px}
 .fvp .fvs-btn--cart{height:46px}
 .fvp .fvs-qty{height:46px}
