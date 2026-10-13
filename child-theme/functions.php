@@ -35,6 +35,7 @@ foreach ( array(
 	'brand.php',
 	'cart.php',
 	'checkout-account.php',
+	'delivery-location.php',
 	'order-tracking.php',
 	'offers.php',
 	'product-links.php',

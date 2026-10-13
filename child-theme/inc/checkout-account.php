@@ -397,6 +397,7 @@ function soharon_render_thankyou() {
                     <h3 class="soharon-ty-sub">Shipping address</h3>
                     <address><?php echo wp_kses_post( $order->get_formatted_shipping_address() ); ?></address>
                 <?php endif; ?>
+                <?php if ( function_exists( 'soharon_loc_block' ) ) echo soharon_loc_block( soharon_loc_from_order( $order ) ); // phpcs:ignore ?>
             </div>
         </div>
 
