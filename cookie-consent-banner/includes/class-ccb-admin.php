@@ -12,6 +12,8 @@ class CCB_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_post_ccb_save', array( __CLASS__, 'save' ) );
+		add_action( 'admin_post_ccb_export', array( __CLASS__, 'export' ) );
+		add_action( 'admin_post_ccb_import', array( __CLASS__, 'import' ) );
 		add_filter( 'plugin_action_links_cookie-consent-banner/cookie-consent-banner.php', array( __CLASS__, 'links' ) );
 	}
 
@@ -31,6 +33,7 @@ class CCB_Admin {
 			'accept'         => __( 'Button: allow all', 'ccb' ),
 			'reject'         => __( 'Button: reject all', 'ccb' ),
 			'settings'       => __( 'Button: cookie settings', 'ccb' ),
+			'modal_header'   => __( 'Preferences: window header', 'ccb' ),
 			'modal_title'    => __( 'Preferences: title', 'ccb' ),
 			'modal_text'     => __( 'Preferences: introduction', 'ccb' ),
 			'necessary'      => __( 'Necessary cookies: name', 'ccb' ),
@@ -40,7 +43,11 @@ class CCB_Admin {
 			'analytics_desc' => __( 'Analytics: description', 'ccb' ),
 			'marketing'      => __( 'Marketing: name', 'ccb' ),
 			'marketing_desc' => __( 'Marketing: description', 'ccb' ),
-			'save'           => __( 'Button: save my choices', 'ccb' ),
+			'learn_more'     => __( 'Preferences: "Learn more" link', 'ccb' ),
+			'modal_accept'   => __( 'Preferences button: accept all', 'ccb' ),
+			'modal_reject'   => __( 'Preferences button: reject all', 'ccb' ),
+			'save'           => __( 'Preferences button: confirm my choices', 'ccb' ),
+			'close'          => __( 'Close button (screen readers)', 'ccb' ),
 			'policy'         => __( 'Policy link text', 'ccb' ),
 			'reopen'         => __( 'Footer link text ([cookie_settings])', 'ccb' ),
 		);
@@ -132,8 +139,132 @@ class CCB_Admin {
 
 				<?php submit_button(); ?>
 			</form>
+
+			<?php if ( 'general' === $tab ) : ?>
+				<hr>
+				<h2><?php esc_html_e( 'Translate the texts with a spreadsheet', 'ccb' ); ?></h2>
+				<p><?php esc_html_e( 'Export every banner text as a CSV file (one row per text, one column per language), fill in the language columns in Excel or Google Sheets, then import it. Empty cells are skipped.', 'ccb' ); ?></p>
+				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ccb_export' ), 'ccb_export' ) ); ?>"><?php esc_html_e( 'Export texts (CSV)', 'ccb' ); ?></a></p>
+				<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php wp_nonce_field( 'ccb_import' ); ?>
+					<input type="hidden" name="action" value="ccb_import">
+					<input type="file" name="ccb_file" accept=".csv,text/csv" required>
+					<?php submit_button( __( 'Import texts', 'ccb' ), 'secondary', 'submit', false ); ?>
+				</form>
+				<?php
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				if ( isset( $_GET['imported'] ) ) {
+					printf( '<div class="notice notice-success inline"><p>%s</p></div>', esc_html( sprintf( /* translators: %d: count */ __( '%d texts imported.', 'ccb' ), (int) $_GET['imported'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				}
+				?>
+			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/** Column header for a language: "French (fr)". */
+	private static function header( $code, $name ) {
+		return $name . ' (' . $code . ')';
+	}
+
+	public static function export() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'ccb' ) );
+		}
+		check_admin_referer( 'ccb_export' );
+		$langs = CCB::languages();
+		$all   = (array) get_option( CCB::TEXTS, array() );
+		$def   = CCB::default_texts();
+
+		$fh = fopen( 'php://temp', 'r+' );
+		fwrite( $fh, "\xEF\xBB\xBF" );
+		$head = array( 'Key', 'Field' );
+		foreach ( $langs as $code => $name ) {
+			$head[] = self::header( $code, $name );
+		}
+		fputcsv( $fh, $head, ',', '"', '' );
+		foreach ( self::labels() as $key => $label ) {
+			$row = array( $key, $label );
+			foreach ( array_keys( $langs ) as $code ) {
+				$v = (string) ( $all[ $code ][ $key ] ?? '' );
+				// English column shows the text in use, so translators see the source.
+				if ( '' === $v && 'en' === $code ) {
+					$v = $def[ $key ];
+				}
+				$row[] = $v;
+			}
+			fputcsv( $fh, $row, ',', '"', '' );
+		}
+		rewind( $fh );
+		$csv = stream_get_contents( $fh );
+		fclose( $fh );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="cookie-banner-texts-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		echo $csv; // phpcs:ignore WordPress.Security.EscapeOutput
+		exit;
+	}
+
+	public static function import() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'ccb' ) );
+		}
+		check_admin_referer( 'ccb_import' );
+		if ( empty( $_FILES['ccb_file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['ccb_file']['tmp_name'] ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			wp_die( esc_html__( 'Please choose a CSV file.', 'ccb' ) );
+		}
+		$content = (string) file_get_contents( $_FILES['ccb_file']['tmp_name'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.WP.AlternativeFunctions
+		if ( "\xEF\xBB\xBF" === substr( $content, 0, 3 ) ) {
+			$content = substr( $content, 3 );
+		} elseif ( "\xFF\xFE" === substr( $content, 0, 2 ) ) {
+			$content = mb_convert_encoding( substr( $content, 2 ), 'UTF-8', 'UTF-16LE' );
+		}
+		$first = strtok( $content, "\n" );
+		$delim = ',';
+		foreach ( array( ';', "\t" ) as $d ) {
+			if ( substr_count( (string) $first, $d ) > substr_count( (string) $first, $delim ) ) {
+				$delim = $d;
+			}
+		}
+		$fh = fopen( 'php://temp', 'r+' );
+		fwrite( $fh, $content );
+		rewind( $fh );
+		$header = fgetcsv( $fh, 0, $delim, '"', '' );
+		$cols   = array();
+		foreach ( (array) $header as $i => $cell ) {
+			if ( $i < 2 ) {
+				continue;
+			}
+			$cell = trim( (string) $cell );
+			if ( preg_match( '/\(\s*([a-z]{2,3}(?:[-_][a-z0-9]{2,4})?)\s*\)\s*$/i', $cell, $m ) || preg_match( '/^([a-z]{2,3}(?:[-_][a-z0-9]{2,4})?)$/i', $cell, $m ) ) {
+				$cols[ $i ] = strtolower( str_replace( '_', '-', $m[1] ) );
+			}
+		}
+		$keys  = array_keys( CCB::default_texts() );
+		$all   = (array) get_option( CCB::TEXTS, array() );
+		$count = 0;
+		while ( false !== ( $row = fgetcsv( $fh, 0, $delim, '"', '' ) ) ) {
+			$key = trim( (string) ( $row[0] ?? '' ) );
+			if ( ! in_array( $key, $keys, true ) ) {
+				continue;
+			}
+			foreach ( $cols as $i => $code ) {
+				$v = trim( (string) ( $row[ $i ] ?? '' ) );
+				if ( '' !== $v ) {
+					$all[ $code ][ $key ] = sanitize_textarea_field( $v );
+					$count++;
+				}
+			}
+		}
+		fclose( $fh );
+		update_option( CCB::TEXTS, $all );
+		do_action( 'litespeed_purge_all' );
+		if ( function_exists( 'rocket_clean_domain' ) ) {
+			rocket_clean_domain();
+		}
+		wp_safe_redirect( admin_url( 'options-general.php?page=ccb&imported=' . $count ) );
+		exit;
 	}
 
 	public static function save() {

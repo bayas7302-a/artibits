@@ -1,7 +1,7 @@
 === Cookie Consent Banner ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPLv2 or later
 
 GDPR / CNIL cookie banner that blocks Google Analytics until the visitor accepts.
@@ -30,3 +30,9 @@ GDPR / CNIL cookie banner that blocks Google Analytics until the visitor accepts
 4. Add [cookie_settings] to the footer (Elementor Shortcode widget).
 5. Purge the page cache.
 6. Connect Google Analytics in Site Kit. Its tag is blocked automatically until consent.
+* Preferences window styled as a "privacy preference centre": header with round close
+  button, intro with "Learn more" link, bordered category rows ("Always active" /
+  switch), three full-width buttons (Accept all / Reject all / Confirm my choices).
+* Translate with a spreadsheet: Settings > Cookie Banner > "Export texts (CSV)" (one row
+  per text, one column per language), fill in, "Import texts". Empty cells are skipped.
+* The "Marketing" category is off by default (switch it on in Settings if needed).

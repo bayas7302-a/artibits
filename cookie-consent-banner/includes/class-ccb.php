@@ -26,7 +26,7 @@ class CCB {
 	public static function defaults() {
 		return array(
 			'enabled'           => 1,
-			'show_marketing'    => 1,
+			'show_marketing'    => 0,
 			'days'              => 182, // CNIL: ask again after about 6 months.
 			'version'           => 1,   // Raising it asks every visitor again.
 			'color_bg'          => '#ffffff',
@@ -46,18 +46,23 @@ class CCB {
 			'accept'         => 'Allow all cookies',
 			'reject'         => 'Reject all',
 			'settings'       => 'Cookie settings',
-			'modal_title'    => 'Cookie preferences',
-			'modal_text'     => 'Choose which cookies you allow. You can change your choice at any time with the "Cookie settings" link at the bottom of every page.',
-			'necessary'      => 'Strictly necessary',
-			'necessary_desc' => 'Required for the website to work, for example to remember your cookie choice. They cannot be switched off.',
-			'always_on'      => 'Always on',
-			'analytics'      => 'Analytics',
-			'analytics_desc' => 'Help us understand how visitors use the website (Google Analytics), so we can improve it. Only set if you allow them.',
+			'modal_header'   => 'Privacy preference centre',
+			'modal_title'    => 'Manage consent preferences',
+			'modal_text'     => 'A cookie is a small text file placed on your device when you visit the site. You can choose not to allow some types of cookies. Blocking some types may affect your experience of the site.',
+			'learn_more'     => 'Learn more',
+			'necessary'      => 'Strictly necessary cookies',
+			'necessary_desc' => 'Site operation (language, display preferences). Exempt from consent.',
+			'always_on'      => 'Always active',
+			'analytics'      => 'Audience measurement',
+			'analytics_desc' => 'Google Analytics 4 - anonymised traffic statistics, site improvement.',
 			'marketing'      => 'Marketing',
-			'marketing_desc' => 'Used to measure and show relevant advertising. Only set if you allow them.',
-			'save'           => 'Save my choices',
+			'marketing_desc' => 'Used to measure and show relevant advertising.',
+			'modal_accept'   => 'Accept all',
+			'modal_reject'   => 'Reject all',
+			'save'           => 'Confirm my choices',
 			'policy'         => 'Privacy and cookie policy',
 			'reopen'         => 'Cookie settings',
+			'close'          => 'Close',
 		);
 	}
 
@@ -264,32 +269,37 @@ class CCB {
 			</div>
 		</div>
 
-		<div class="ccb ccb-modal" id="ccb-modal" role="dialog" aria-modal="true" aria-labelledby="ccb-modal-title" hidden>
+		<div class="ccb ccb-modal" id="ccb-modal" role="dialog" aria-modal="true" aria-labelledby="ccb-modal-head" hidden>
 			<div class="ccb-modal__box">
-				<button type="button" class="ccb-modal__close" data-ccb-action="close" aria-label="Close">&times;</button>
-				<p class="ccb__title" id="ccb-modal-title"><?php echo esc_html( $t['modal_title'] ); ?></p>
-				<p class="ccb__msg"><?php echo esc_html( $t['modal_text'] ); ?></p>
-				<div class="ccb-cat">
-					<div class="ccb-cat__head"><strong><?php echo esc_html( $t['necessary'] ); ?></strong><span class="ccb-cat__on"><?php echo esc_html( $t['always_on'] ); ?></span></div>
-					<p><?php echo esc_html( $t['necessary_desc'] ); ?></p>
+				<div class="ccb-modal__header">
+					<p class="ccb-modal__heading" id="ccb-modal-head"><?php echo esc_html( $t['modal_header'] ); ?></p>
+					<button type="button" class="ccb-modal__close" data-ccb-action="close" aria-label="<?php echo esc_attr( $t['close'] ); ?>"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
 				</div>
-				<?php foreach ( $cats as $key => $c ) : ?>
-					<div class="ccb-cat">
-						<label class="ccb-cat__head">
-							<strong><?php echo esc_html( $c[0] ); ?></strong>
-							<span class="ccb-switch"><input type="checkbox" data-ccb-cat="<?php echo esc_attr( $key ); ?>"><span></span></span>
-						</label>
-						<p><?php echo esc_html( $c[1] ); ?></p>
+				<div class="ccb-modal__body">
+					<p class="ccb-modal__title"><?php echo esc_html( $t['modal_title'] ); ?></p>
+					<p class="ccb-modal__text"><?php echo esc_html( $t['modal_text'] ); ?>
+						<?php if ( $policy ) : ?>
+							<a href="<?php echo esc_url( $policy ); ?>"><?php echo esc_html( $t['learn_more'] ); ?></a>
+						<?php endif; ?>
+					</p>
+					<div class="ccb-cats">
+						<div class="ccb-cat">
+							<div class="ccb-cat__info"><strong><?php echo esc_html( $t['necessary'] ); ?></strong><span><?php echo esc_html( $t['necessary_desc'] ); ?></span></div>
+							<span class="ccb-cat__on"><?php echo esc_html( $t['always_on'] ); ?></span>
+						</div>
+						<?php foreach ( $cats as $key => $c ) : ?>
+							<label class="ccb-cat">
+								<span class="ccb-cat__info"><strong><?php echo esc_html( $c[0] ); ?></strong><span><?php echo esc_html( $c[1] ); ?></span></span>
+								<span class="ccb-switch"><input type="checkbox" data-ccb-cat="<?php echo esc_attr( $key ); ?>"><span></span></span>
+							</label>
+						<?php endforeach; ?>
 					</div>
-				<?php endforeach; ?>
-				<div class="ccb-modal__actions">
-					<button type="button" class="ccb__btn" data-ccb-action="reject"><?php echo esc_html( $t['reject'] ); ?></button>
-					<button type="button" class="ccb__btn" data-ccb-action="save"><?php echo esc_html( $t['save'] ); ?></button>
-					<button type="button" class="ccb__btn" data-ccb-action="accept"><?php echo esc_html( $t['accept'] ); ?></button>
 				</div>
-				<?php if ( $policy ) : ?>
-					<p class="ccb-modal__policy"><a href="<?php echo esc_url( $policy ); ?>"><?php echo esc_html( $t['policy'] ); ?></a></p>
-				<?php endif; ?>
+				<div class="ccb-modal__actions">
+					<button type="button" class="ccb__btn ccb__btn--pill" data-ccb-action="accept"><?php echo esc_html( $t['modal_accept'] ); ?></button>
+					<button type="button" class="ccb__btn ccb__btn--pill" data-ccb-action="reject"><?php echo esc_html( $t['modal_reject'] ); ?></button>
+					<button type="button" class="ccb__btn ccb__btn--pill" data-ccb-action="save"><?php echo esc_html( $t['save'] ); ?></button>
+				</div>
 			</div>
 		</div>
 		<?php
