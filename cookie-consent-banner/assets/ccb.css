@@ -15,33 +15,34 @@
 }
 #ccb.is-visible { transform: none; }
 .ccb__bar {
-	max-width: 1660px; margin: 0 auto; padding: 36px clamp(20px, 6.5vw, 125px);
+	max-width: 1660px; margin: 0 auto; padding: 24px clamp(20px, 6.5vw, 125px);
 	display: flex; align-items: center; gap: 24px 40px;
 }
 .ccb__text { flex: 1 1 auto; min-width: 0; }
 .ccb__title {
-	margin: 0 0 14px; font-size: clamp(22px, 2vw, 32px); font-weight: 300; line-height: 1.15;
+	margin: 0 0 10px !important; font-size: 20px !important; font-weight: 300; line-height: 1.2 !important;
 	text-transform: uppercase; letter-spacing: .01em; color: var(--ccb-text);
 }
-.ccb__msg { margin: 0; font-size: 15px; line-height: 1.55; max-width: 900px; color: var(--ccb-text); }
+.ccb__msg { margin: 0 !important; font-size: 14px; line-height: 1.55; max-width: 900px; color: var(--ccb-text); }
 .ccb__policy { color: inherit; text-decoration: underline; margin-inline-start: 4px; }
-.ccb__actions { display: flex; flex-wrap: wrap; gap: 20px; flex: 0 0 auto; }
-.ccb__btn {
-	appearance: none; display: inline-flex; align-items: center; justify-content: center;
-	min-height: 52px; padding: 12px 40px; margin: 0; border: 1px solid var(--ccb-btn); border-radius: 0;
-	background: var(--ccb-btn); color: var(--ccb-btn-text);
-	font: inherit; font-size: 17px; font-weight: 500; line-height: 1.2; cursor: pointer; white-space: nowrap;
-	transition: opacity .2s ease, background .2s ease, color .2s ease;
+.ccb__actions { display: flex; flex-wrap: wrap; gap: 10px; flex: 0 0 auto; }
+.ccb .ccb__btn,
+.ccb button.ccb__btn {
+	appearance: none !important; display: inline-flex !important; align-items: center; justify-content: center;
+	min-height: 40px !important; padding: 9px 22px !important; margin: 0 !important;
+	border: 1px solid var(--ccb-btn) !important; border-radius: 0 !important; box-shadow: none !important;
+	background: var(--ccb-btn) !important; color: var(--ccb-btn-text) !important;
+	font: inherit; font-size: 14px !important; font-weight: 500 !important; line-height: 1.2 !important;
+	letter-spacing: .01em !important; text-transform: none !important; text-decoration: none !important;
+	cursor: pointer; white-space: nowrap; width: auto !important; transition: opacity .2s ease;
 }
-.ccb__btn:hover { opacity: .85; }
-.ccb__btn:focus-visible { outline: 2px solid var(--ccb-btn); outline-offset: 3px; }
-.ccb__btn--outline { background: transparent; color: var(--ccb-btn); font-weight: 400; letter-spacing: .02em; }
-.ccb__btn--outline:hover { background: var(--ccb-btn); color: var(--ccb-btn-text); opacity: 1; }
+.ccb .ccb__btn:hover, .ccb .ccb__btn:focus { opacity: .82; background: var(--ccb-btn) !important; color: var(--ccb-btn-text) !important; }
+.ccb .ccb__btn:focus-visible { outline: 2px solid var(--ccb-btn) !important; outline-offset: 3px; }
 
 @media (max-width: 1100px) {
 	.ccb__bar { flex-direction: column; align-items: stretch; padding: 24px 20px; }
 	.ccb__actions { gap: 10px; }
-	.ccb__btn { flex: 1 1 auto; padding: 12px 20px; }
+	.ccb .ccb__btn { flex: 1 1 auto; }
 }
 
 /* Preferences window */
@@ -58,7 +59,7 @@
 	position: absolute; top: 10px; inset-inline-end: 14px; background: none; border: 0;
 	font-size: 30px; line-height: 1; color: var(--ccb-text); cursor: pointer; padding: 4px;
 }
-.ccb-modal .ccb__title { font-size: 26px; padding-inline-end: 30px; }
+.ccb-modal .ccb__title { font-size: 20px !important; padding-inline-end: 30px; }
 .ccb-modal .ccb__msg { margin-bottom: 18px; }
 .ccb-cat { border-top: 1px solid rgba(0, 0, 0, .12); padding: 16px 0 6px; }
 .ccb-cat p { margin: 6px 0 8px; font-size: 14px; line-height: 1.5; opacity: .8; }
@@ -73,6 +74,6 @@
 [dir="rtl"] .ccb-switch input:checked + span::after { transform: translateX(-20px); }
 .ccb-switch input:focus-visible + span { outline: 2px solid var(--ccb-btn); outline-offset: 2px; }
 .ccb-modal__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
-.ccb-modal__actions .ccb__btn { flex: 1 1 auto; padding: 12px 18px; font-size: 15px; min-height: 46px; }
+.ccb-modal__actions .ccb__btn { flex: 1 1 auto; }
 .ccb-modal__policy { margin: 16px 0 0; font-size: 13px; }
 .ccb-modal__policy a { color: inherit; }

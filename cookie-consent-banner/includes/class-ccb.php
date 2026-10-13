@@ -259,7 +259,7 @@ class CCB {
 				<div class="ccb__actions">
 					<button type="button" class="ccb__btn" data-ccb-action="accept"><?php echo esc_html( $t['accept'] ); ?></button>
 					<button type="button" class="ccb__btn" data-ccb-action="reject"><?php echo esc_html( $t['reject'] ); ?></button>
-					<button type="button" class="ccb__btn ccb__btn--outline" data-ccb-action="settings"><?php echo esc_html( $t['settings'] ); ?></button>
+					<button type="button" class="ccb__btn" data-ccb-action="settings"><?php echo esc_html( $t['settings'] ); ?></button>
 				</div>
 			</div>
 		</div>
@@ -284,7 +284,7 @@ class CCB {
 				<?php endforeach; ?>
 				<div class="ccb-modal__actions">
 					<button type="button" class="ccb__btn" data-ccb-action="reject"><?php echo esc_html( $t['reject'] ); ?></button>
-					<button type="button" class="ccb__btn ccb__btn--outline" data-ccb-action="save"><?php echo esc_html( $t['save'] ); ?></button>
+					<button type="button" class="ccb__btn" data-ccb-action="save"><?php echo esc_html( $t['save'] ); ?></button>
 					<button type="button" class="ccb__btn" data-ccb-action="accept"><?php echo esc_html( $t['accept'] ); ?></button>
 				</div>
 				<?php if ( $policy ) : ?>
