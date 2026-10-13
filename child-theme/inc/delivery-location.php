@@ -2,8 +2,9 @@
 /**
  * ============================================
  * DELIVERY LOCATION – Google Maps pin
- * - Checkout: "Pin your delivery location" map under the delivery address
- *   (search box, "Use my current location", draggable pin)
+ * - Checkout: required "Delivery location pin" – its own field, separate from
+ *   the WooCommerce address (search box, "Use my location", draggable pin;
+ *   the address of the pin is selected automatically when the pin moves)
  * - Saved on the order; shown in admin, My Account → Orders → View,
  *   the thank-you page and the customer + admin emails
  * - My Account → Addresses → Delivery address: same map, saved for next time
@@ -11,6 +12,8 @@
  * Settings: WooCommerce → Settings → General → "Delivery location map"
  * (API key with Maps JavaScript API, Places API (New) and Geocoding API,
  * restricted to this website). No key = no map, everything else unchanged.
+ * The pin is required at checkout unless the map could not load (so an
+ * order is never blocked by a Google outage).
  * ============================================
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -38,13 +41,6 @@ add_filter( 'woocommerce_general_settings', function ( $settings ) {
 			'default'  => '',
 			'desc_tip' => 'Google Maps Platform → Map Management. Gives the newer pin marker.',
 		),
-		array(
-			'title'   => 'Pin at checkout',
-			'desc'    => 'Customers must pin their delivery location before placing an order',
-			'id'      => 'soharon_loc_required',
-			'type'    => 'checkbox',
-			'default' => 'no',
-		),
 		array( 'type' => 'sectionend', 'id' => 'soharon_loc_section' ),
 	) );
 } );
@@ -53,7 +49,7 @@ function soharon_loc_key() {
 	return trim( (string) get_option( 'soharon_gmaps_key', '' ) );
 }
 function soharon_loc_required() {
-	return 'yes' === get_option( 'soharon_loc_required', 'no' );
+	return (bool) apply_filters( 'soharon_loc_required', true );
 }
 
 /* Data helpers --------------------------------------------------------- */
@@ -106,24 +102,14 @@ function soharon_loc_maps_url( $loc ) {
 	return 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $loc['lat'] . ',' . $loc['lng'] );
 }
 
-/* Small map without the API (no key, no cost) */
-function soharon_loc_embed( $loc, $height = 200 ) {
-	return sprintf(
-		'<iframe class="soharon-loc-embed" src="%s" width="100%%" height="%d" style="border:0;border-radius:12px;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Delivery location"></iframe>',
-		esc_url( 'https://maps.google.com/maps?q=' . rawurlencode( $loc['lat'] . ',' . $loc['lng'] ) . '&z=17&output=embed' ),
-		(int) $height
-	);
-}
-
-/* "Delivery location" block: thank-you page, My Account order view, addresses */
-function soharon_loc_block( $loc, $title = 'Delivery location', $map = true ) {
+/* Pinned location as text + a short "View on map" link (new tab).
+   Used on the thank-you page, My Account and the admin order screen. */
+function soharon_loc_block( $loc, $title = 'Delivery location pin' ) {
 	if ( ! $loc ) return '';
-	$pin = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+	$text = $loc['address'] ? $loc['address'] : $loc['lat'] . ', ' . $loc['lng'];
 	$out  = '<div class="soharon-loc-view">';
 	if ( $title ) $out .= '<h3 class="soharon-loc-view__title">' . esc_html( $title ) . '</h3>';
-	if ( $map ) $out .= soharon_loc_embed( $loc );
-	if ( $loc['address'] ) $out .= '<p class="soharon-loc-view__addr">' . esc_html( $loc['address'] ) . '</p>';
-	$out .= '<a class="soharon-loc-view__link" href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">' . $pin . ' Open in Google Maps</a>';
+	$out .= '<p class="soharon-loc-view__addr">' . esc_html( $text ) . ' <a class="soharon-loc-view__link" href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">View on map&nbsp;↗</a></p>';
 	$out .= '</div>';
 	return $out;
 }
@@ -144,25 +130,31 @@ add_action( 'woocommerce_checkout_shipping', function () {
 	soharon_loc_picker( soharon_loc_from_user( get_current_user_id() ), soharon_loc_required() );
 }, 50 );
 
-/* The map itself – shared by checkout and My Account → Addresses */
+/* The map itself – shared by checkout and My Account → Addresses.
+   The pin has its own field ("soharon_loc_address"), separate from the WooCommerce address. */
 function soharon_loc_picker( $loc, $required = false ) {
+	$text = $loc ? ( $loc['address'] ? $loc['address'] : $loc['lat'] . ', ' . $loc['lng'] ) : '';
 	?>
 	<div class="soharon-loc" data-soharon-loc>
-		<h3 class="soharon-loc__title">Pin your delivery location <?php echo $required ? '<abbr class="required" title="required">*</abbr>' : '<span class="optional">(optional)</span>'; ?></h3>
-		<p class="soharon-loc__hint">Search for your building or drag the pin to the exact spot. It helps our courier find you.</p>
+		<h3 class="soharon-loc__title">Delivery location pin <?php echo $required ? '<abbr class="required" title="required">*</abbr>' : '<span class="optional">(optional)</span>'; ?></h3>
+		<p class="soharon-loc__hint">Move the pin to your exact door – the location is selected automatically. You can also search for your building or use your current location.</p>
 		<div class="soharon-loc__tools">
 			<div class="soharon-loc__search">
-				<input type="text" class="input-text soharon-loc__input" placeholder="Search address, building or area" autocomplete="off" aria-label="Search address" role="combobox" aria-expanded="false" aria-autocomplete="list">
+				<input type="text" class="input-text soharon-loc__input" placeholder="Search building, street or area" autocomplete="off" aria-label="Search location" role="combobox" aria-expanded="false" aria-autocomplete="list">
 				<ul class="soharon-loc__list" role="listbox" hidden></ul>
 			</div>
 			<button type="button" class="soharon-loc__me">Use my location</button>
 		</div>
 		<div class="soharon-loc__map" role="application" aria-label="Map – click or drag the pin to set your delivery location"></div>
-		<p class="soharon-loc__status" aria-live="polite"><?php echo $loc ? 'Pinned: <span>' . esc_html( $loc['address'] ? $loc['address'] : $loc['lat'] . ', ' . $loc['lng'] ) . '</span>' : 'No pin yet – click the map or search above.'; ?>
-			<button type="button" class="soharon-loc__clear"<?php echo $loc ? '' : ' hidden'; ?>>Remove pin</button></p>
+		<p class="form-row form-row-wide soharon-loc__field<?php echo $required ? ' validate-required' : ''; ?>">
+			<label for="soharon_loc_address">Pinned location<?php echo $required ? '&nbsp;<abbr class="required" title="required">*</abbr>' : ''; ?></label>
+			<span class="woocommerce-input-wrapper">
+				<input type="text" class="input-text" id="soharon_loc_address" name="soharon_loc_address" value="<?php echo esc_attr( $text ); ?>" placeholder="Move the pin on the map to select your location" readonly>
+			</span>
+			<button type="button" class="soharon-loc__clear"<?php echo $loc ? '' : ' hidden'; ?>>Remove pin</button>
+		</p>
 		<input type="hidden" name="soharon_loc_lat" value="<?php echo esc_attr( $loc ? $loc['lat'] : '' ); ?>">
 		<input type="hidden" name="soharon_loc_lng" value="<?php echo esc_attr( $loc ? $loc['lng'] : '' ); ?>">
-		<input type="hidden" name="soharon_loc_address" value="<?php echo esc_attr( $loc ? $loc['address'] : '' ); ?>">
 		<input type="hidden" name="soharon_loc_unavailable" value="">
 	</div>
 	<?php
@@ -173,7 +165,7 @@ add_action( 'woocommerce_after_checkout_validation', function ( $data, $errors )
 	if ( '' === soharon_loc_key() || ! soharon_loc_required() || ! WC()->cart || ! WC()->cart->needs_shipping_address() ) return;
 	if ( ! empty( $_POST['soharon_loc_unavailable'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification -- map failed to load: don't block the order
 	if ( ! soharon_loc_from_post() ) {
-		$errors->add( 'soharon_loc_required', 'Please <strong>pin your delivery location</strong> on the map.' );
+		$errors->add( 'soharon_loc_required', '<strong>Delivery location pin</strong> is a required field. Please move the pin on the map to your location.' );
 	}
 }, 10, 2 );
 
@@ -203,7 +195,7 @@ add_action( 'woocommerce_customer_save_address', function ( $user_id, $load_addr
 add_action( 'woocommerce_my_account_after_my_address', function ( $name ) {
 	if ( 'shipping' !== $name ) return;
 	$loc = soharon_loc_from_user( get_current_user_id() );
-	if ( $loc ) echo '<span class="soharon-loc-pinned"><a href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">📍 Location pinned – view on map</a></span>';
+	if ( $loc ) echo '<span class="soharon-loc-pinned"><strong>Location pin:</strong> ' . esc_html( $loc['address'] ? $loc['address'] : $loc['lat'] . ', ' . $loc['lng'] ) . ' <a href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">View on map&nbsp;↗</a></span>';
 } );
 
 /* Order views ---------------------------------------------------------- */
@@ -212,14 +204,16 @@ add_action( 'woocommerce_order_details_after_customer_details', function ( $orde
 	echo soharon_loc_block( soharon_loc_from_order( $order ) ); // phpcs:ignore
 } );
 
-/* Admin order screen, under the shipping address */
+/* Admin order screen: its own "Delivery location pin" section under the shipping address */
 add_action( 'woocommerce_admin_order_data_after_shipping_address', function ( $order ) {
 	$loc = soharon_loc_from_order( $order );
-	if ( ! $loc ) return;
-	echo '<div class="soharon-loc-admin" style="clear:both;padding-top:8px"><h3>Delivery location</h3>';
-	echo soharon_loc_embed( $loc, 180 ); // phpcs:ignore
-	if ( $loc['address'] ) echo '<p style="margin:8px 0 4px">' . esc_html( $loc['address'] ) . '</p>';
-	echo '<p style="margin:4px 0"><a href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">Open in Google Maps</a> · <code>' . esc_html( $loc['lat'] . ', ' . $loc['lng'] ) . '</code></p></div>';
+	echo '<div class="soharon-loc-admin" style="clear:both;padding-top:6px"><h3>Delivery location pin</h3>';
+	if ( ! $loc ) {
+		echo '<p style="color:#888">No pin.</p></div>';
+		return;
+	}
+	if ( $loc['address'] ) echo '<p style="margin:0 0 4px">' . esc_html( $loc['address'] ) . '</p>';
+	echo '<p style="margin:0"><a href="' . esc_url( soharon_loc_maps_url( $loc ) ) . '" target="_blank" rel="noopener">View on map&nbsp;↗</a> <span style="color:#888">(' . esc_html( $loc['lat'] . ', ' . $loc['lng'] ) . ')</span></p></div>';
 } );
 
 /* Emails (customer + admin), after the addresses -------------------- */
@@ -228,18 +222,21 @@ add_action( 'woocommerce_email_customer_details', function ( $order, $sent_to_ad
 	if ( ! $loc ) return;
 	$url = soharon_loc_maps_url( $loc );
 	if ( $plain_text ) {
-		echo "\n" . esc_html__( 'Delivery location', 'woocommerce' ) . ': ' . ( $loc['address'] ? esc_html( $loc['address'] ) . ' – ' : '' ) . esc_url_raw( $url ) . "\n";
+		echo "\nDelivery location pin: " . ( $loc['address'] ? esc_html( $loc['address'] ) . ' – ' : '' ) . esc_url_raw( $url ) . "\n";
 		return;
 	}
 	$red    = function_exists( 'sohe_c' ) ? sohe_c( 'red' ) : '#DB141D';
 	$border = function_exists( 'sohe_c' ) ? sohe_c( 'border' ) : '#ECECEC';
-	$muted  = function_exists( 'sohe_c' ) ? sohe_c( 'muted' ) : '#6B7280';
+	$soft   = function_exists( 'sohe_c' ) ? sohe_c( 'soft' ) : '#F7F7F7';
+	$text   = $loc['address'] ? $loc['address'] : $loc['lat'] . ', ' . $loc['lng'];
 	?>
-	<table cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 24px;border:1px solid <?php echo esc_attr( $border ); ?>;border-radius:14px">
-		<tr><td style="padding:16px 18px">
-			<p style="margin:0 0 4px;font-size:15px;font-weight:600">Delivery location</p>
-			<?php if ( $loc['address'] ) : ?><p style="margin:0 0 12px;font-size:14px;color:<?php echo esc_attr( $muted ); ?>"><?php echo esc_html( $loc['address'] ); ?></p><?php endif; ?>
-			<a href="<?php echo esc_url( $url ); ?>" style="display:inline-block;padding:10px 18px;border-radius:999px;background:<?php echo esc_attr( $red ); ?>;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none">View on Google Maps</a>
+	<table cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 24px">
+		<tr><td style="padding:0">
+			<h2 style="margin:0 0 10px">Delivery location pin</h2>
+			<p style="margin:0;padding:16px 18px;border:1px solid <?php echo esc_attr( $border ); ?>;border-radius:14px;background-color:<?php echo esc_attr( $soft ); ?>;font-size:14px;line-height:1.7">
+				<?php echo esc_html( $text ); ?><br>
+				<a href="<?php echo esc_url( $url ); ?>" target="_blank" style="color:<?php echo esc_attr( $red ); ?>;font-weight:600;text-decoration:none">View on map&nbsp;&#8599;</a>
+			</p>
 		</td></tr>
 	</table>
 	<?php
@@ -272,10 +269,10 @@ add_action( 'wp_enqueue_scripts', function () {
 		soharon_enqueue_inline_css( 'soharon-loc-view', soharon_brand_vars( '
 .soharon-loc-view{margin:18px 0 0}
 .soharon-loc-view__title{margin:0 0 10px;font-size:16px;font-weight:600}
-.soharon-loc-view__addr{margin:10px 0 4px;font-size:14px;color:#6B7280}
-.soharon-loc-view__link{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:14px;font-weight:600;color:{RED};text-decoration:none}
+.soharon-loc-view__addr{margin:0;font-size:14px;line-height:1.6}
+.soharon-loc-view__link{white-space:nowrap;font-weight:600;color:{RED};text-decoration:none}
 .soharon-loc-view__link:hover{text-decoration:underline}
-.soharon-loc-pinned{display:block;margin-top:8px;font-size:13px}
+.soharon-loc-pinned{display:block;margin-top:10px;font-size:14px;line-height:1.6}
 .soharon-loc-pinned a{color:{RED};text-decoration:none;font-weight:600}
 ' ) );
 	}
@@ -298,10 +295,15 @@ function soharon_loc_css() {
 .soharon-loc__me{flex:0 0 auto;padding:0 18px;min-height:46px;border:1px solid {RED};border-radius:999px;background:#fff;color:{RED};font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .soharon-loc__me:hover{background:{RED};color:#fff}
 .soharon-loc__map{height:320px;border-radius:14px;background:#F4F5F7;overflow:hidden}
-.soharon-loc__status{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:10px 0 0;font-size:14px;color:#6B7280}
-.soharon-loc__status span{color:#1A1A1A}
-.soharon-loc__clear{padding:0;border:0;background:none;color:{RED};font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline}
-.soharon-loc.is-unavailable .soharon-loc__tools,.soharon-loc.is-unavailable .soharon-loc__map{display:none}
+.soharon-loc__field{position:relative;margin:14px 0 0 !important;padding:0 !important}
+.soharon-loc__field label{display:block;margin:0 0 6px;font-size:14px;font-weight:500}
+.soharon-loc__field .woocommerce-input-wrapper{display:block}
+.soharon-loc__field input.input-text{width:100%;box-sizing:border-box}
+.soharon-loc__field input[readonly]{cursor:default}
+.soharon-loc__clear{display:inline-block}
+.soharon-loc__clear[hidden]{display:none}
+.soharon-loc__clear{margin-top:6px;padding:0;border:0;background:none;color:{RED};font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline}
+.soharon-loc.is-unavailable .soharon-loc__tools,.soharon-loc.is-unavailable .soharon-loc__map,.soharon-loc.is-unavailable .soharon-loc__hint{display:none}
 @media (max-width:600px){.soharon-loc__tools{flex-direction:column}.soharon-loc__me{min-height:44px}.soharon-loc__map{height:260px}}
 ';
 }
@@ -313,25 +315,23 @@ function soharon_loc_js() {
 	if (!cfg || !box) return;
 	var $ = function (s) { return box.querySelector(s); };
 	var lat = $('[name="soharon_loc_lat"]'), lng = $('[name="soharon_loc_lng"]'), addr = $('[name="soharon_loc_address"]');
-	var status = $('.soharon-loc__status'), clearBtn = $('.soharon-loc__clear');
+	var clearBtn = $('.soharon-loc__clear');
 	var input = $('.soharon-loc__input'), list = $('.soharon-loc__list');
 	var map, marker, geocoder, places, token, timer, items = [], active = -1;
 
-	function unavailable(msg) {
+	function unavailable() {
 		box.classList.add('is-unavailable');
 		$('[name="soharon_loc_unavailable"]').value = '1';
-		status.firstChild.textContent = msg || 'The map could not be loaded. Please make sure your address above is complete.';
+		addr.placeholder = 'The map could not be loaded – your order can still be placed.';
 	}
 	window.gm_authFailure = function () { unavailable(); };
 
-	function setStatus(text) {
-		status.firstChild.textContent = text ? 'Pinned: ' : 'No pin yet – click the map or search above.';
-		var span = status.querySelector('span');
-		if (text) {
-			if (!span) { span = document.createElement('span'); status.insertBefore(span, clearBtn); }
-			span.textContent = text;
-		} else if (span) { span.remove(); }
-		clearBtn.hidden = !text;
+	/* The pin's own field (not the WooCommerce address) */
+	function setText(text) {
+		addr.value = text || '';
+		clearBtn.hidden = !lat.value;
+		var row = addr.closest('.form-row');
+		if (row && text) row.classList.remove('woocommerce-invalid', 'woocommerce-invalid-required-field');
 	}
 	function getPos() { var p = marker.position || (marker.getPosition && marker.getPosition()); return p && (typeof p.lat === 'function' ? { lat: p.lat(), lng: p.lng() } : p); }
 	function showMarker(pos) {
@@ -340,58 +340,24 @@ function soharon_loc_js() {
 	}
 	function hideMarker() { if (marker.setVisible) marker.setVisible(false); else marker.map = null; }
 
-	/* Pin moved: save the spot and show the address under the map (fields are not changed) */
+	/* Pin moved: save the spot and select the address of the pin */
 	function pin(pos, text) {
 		showMarker(pos);
+		var key = (+pos.lat).toFixed(6) + ',' + (+pos.lng).toFixed(6);
 		lat.value = (+pos.lat).toFixed(6); lng.value = (+pos.lng).toFixed(6);
-		if (text) { addr.value = text; setStatus(text); return; }
-		addr.value = ''; setStatus(lat.value + ', ' + lng.value);
+		if (text) { setText(text); return; }
+		setText(key); // coordinates until the address is found
+		addr.placeholder = 'Finding address…';
 		geocoder.geocode({ location: pos }).then(function (r) {
-			if (r.results && r.results[0] && lat.value === (+pos.lat).toFixed(6)) {
-				addr.value = r.results[0].formatted_address; setStatus(addr.value);
-			}
+			// prefer a readable address over a plus code ("57XP+WRV - …"); the exact spot is saved anyway
+			var res = (r.results || []).filter(function (x) { return x.types.indexOf('plus_code') < 0 && !/^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}\b/.test(x.formatted_address); })[0] || (r.results || [])[0];
+			if (res && lat.value + ',' + lng.value === key) setText(res.formatted_address);
 		}).catch(function () {});
 	}
-
-	/* Search result picked: also fill the address fields */
-	function prefix() {
-		if (!document.querySelector('form.checkout')) return 'shipping_';
-		var diff = document.getElementById('ship-to-different-address-checkbox');
-		return diff && diff.checked ? 'shipping_' : 'billing_';
-	}
-	function setField(id, value) {
-		var el = document.getElementById(id);
-		if (!el || value == null) return;
-		if (el.tagName === 'SELECT') {
-			var opt = Array.prototype.find.call(el.options, function (o) {
-				return o.value.toLowerCase() === String(value).toLowerCase() || o.text.toLowerCase() === String(value).toLowerCase();
-			});
-			if (!opt) return;
-			value = opt.value;
-		}
-		if (el.value === value) return;
-		el.value = value;
-		if (window.jQuery) jQuery(el).trigger('change'); else el.dispatchEvent(new Event('change', { bubbles: true }));
-	}
-	function fill(place) {
-		var c = {};
-		(place.addressComponents || []).forEach(function (a) { a.types.forEach(function (t) { if (!c[t]) c[t] = a; }); });
-		var t = function (k, s) { return c[k] ? (s ? c[k].shortText : c[k].longText) : ''; };
-		var street = [t('street_number'), t('route')].filter(Boolean).join(' ');
+	function placeText(place) {
 		var named = (place.types || []).some(function (x) { return ['establishment', 'point_of_interest', 'premise', 'subpremise'].indexOf(x) > -1; });
-		var name = named && place.displayName && (!street || place.displayName.indexOf(street) < 0) ? place.displayName : '';
-		var line1 = [name, street || t('neighborhood') || t('sublocality')].filter(Boolean).join(', ');
-		var p = prefix();
-		setField(p + 'country', t('country', true));
-		// the state list is rebuilt after a country change, so fill the rest a moment later
-		setTimeout(function () {
-			if (line1) setField(p + 'address_1', line1);
-			setField(p + 'city', t('locality') || t('postal_town') || t('administrative_area_level_2') || t('administrative_area_level_1'));
-			setField(p + 'state', t('administrative_area_level_1', true));
-			setField(p + 'state', t('administrative_area_level_1'));
-			if (t('postal_code')) setField(p + 'postcode', t('postal_code'));
-			if (window.jQuery) jQuery(document.body).trigger('update_checkout');
-		}, 300);
+		var f = place.formattedAddress || '';
+		return named && place.displayName && f.indexOf(place.displayName) < 0 ? place.displayName + ', ' + f : f;
 	}
 
 	/* Search box (Places API – New) */
@@ -423,12 +389,11 @@ function soharon_loc_js() {
 		var place = s.placePrediction.toPlace();
 		input.value = s.placePrediction.text.toString();
 		closeList(); token = null;
-		place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents', 'types', 'viewport'] }).then(function () {
+		place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'types', 'viewport'] }).then(function () {
 			if (!place.location) return;
 			if (place.viewport) map.fitBounds(place.viewport); else map.setCenter(place.location);
 			if (map.getZoom() > 18 || map.getZoom() < 15) map.setZoom(17);
-			pin(place.location.toJSON ? place.location.toJSON() : place.location, place.formattedAddress);
-			fill(place);
+			pin(place.location.toJSON ? place.location.toJSON() : place.location, placeText(place));
 		}).catch(function () {});
 	}
 	function mark(i) {
@@ -480,9 +445,10 @@ function soharon_loc_js() {
 		}, function () { btn.textContent = 'Use my location'; alert('We could not get your location. Please allow location access, or search / click the map instead.'); }, { enableHighAccuracy: true, timeout: 10000 });
 	});
 	clearBtn.addEventListener('click', function () {
-		lat.value = lng.value = addr.value = '';
+		lat.value = lng.value = '';
 		if (marker) hideMarker();
-		setStatus('');
+		setText('');
+		addr.placeholder = 'Move the pin on the map to select your location';
 	});
 
 	/* Load Google Maps only when the map is about to be seen */
