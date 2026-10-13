@@ -1,0 +1,78 @@
+/* Cookie Consent Banner - bottom bar like the client reference:
+   white bar, large uppercase title, message on the left, buttons on the right. */
+.ccb {
+	--ccb-bg: #fff; --ccb-text: #111; --ccb-btn: #000; --ccb-btn-text: #fff;
+	font-family: inherit; color: var(--ccb-text); box-sizing: border-box;
+}
+.ccb *, .ccb *::before, .ccb *::after { box-sizing: inherit; }
+.ccb[hidden] { display: none !important; }
+
+#ccb {
+	position: fixed; left: 0; right: 0; bottom: 0; z-index: 999999;
+	background: var(--ccb-bg); border-top: 1px solid rgba(0, 0, 0, .12);
+	box-shadow: 0 -6px 30px rgba(0, 0, 0, .12);
+	transform: translateY(100%); transition: transform .35s ease;
+}
+#ccb.is-visible { transform: none; }
+.ccb__bar {
+	max-width: 1660px; margin: 0 auto; padding: 36px clamp(20px, 6.5vw, 125px);
+	display: flex; align-items: center; gap: 24px 40px;
+}
+.ccb__text { flex: 1 1 auto; min-width: 0; }
+.ccb__title {
+	margin: 0 0 14px; font-size: clamp(22px, 2vw, 32px); font-weight: 300; line-height: 1.15;
+	text-transform: uppercase; letter-spacing: .01em; color: var(--ccb-text);
+}
+.ccb__msg { margin: 0; font-size: 15px; line-height: 1.55; max-width: 900px; color: var(--ccb-text); }
+.ccb__policy { color: inherit; text-decoration: underline; margin-inline-start: 4px; }
+.ccb__actions { display: flex; flex-wrap: wrap; gap: 20px; flex: 0 0 auto; }
+.ccb__btn {
+	appearance: none; display: inline-flex; align-items: center; justify-content: center;
+	min-height: 52px; padding: 12px 40px; margin: 0; border: 1px solid var(--ccb-btn); border-radius: 0;
+	background: var(--ccb-btn); color: var(--ccb-btn-text);
+	font: inherit; font-size: 17px; font-weight: 500; line-height: 1.2; cursor: pointer; white-space: nowrap;
+	transition: opacity .2s ease, background .2s ease, color .2s ease;
+}
+.ccb__btn:hover { opacity: .85; }
+.ccb__btn:focus-visible { outline: 2px solid var(--ccb-btn); outline-offset: 3px; }
+.ccb__btn--outline { background: transparent; color: var(--ccb-btn); font-weight: 400; letter-spacing: .02em; }
+.ccb__btn--outline:hover { background: var(--ccb-btn); color: var(--ccb-btn-text); opacity: 1; }
+
+@media (max-width: 1100px) {
+	.ccb__bar { flex-direction: column; align-items: stretch; padding: 24px 20px; }
+	.ccb__actions { gap: 10px; }
+	.ccb__btn { flex: 1 1 auto; padding: 12px 20px; }
+}
+
+/* Preferences window */
+.ccb-modal {
+	position: fixed; inset: 0; z-index: 1000000; display: flex; align-items: center; justify-content: center;
+	padding: 20px; background: rgba(0, 0, 0, .55); opacity: 0; transition: opacity .25s ease;
+}
+.ccb-modal.is-visible { opacity: 1; }
+.ccb-modal__box {
+	position: relative; width: 100%; max-width: 640px; max-height: calc(100vh - 40px); overflow: auto;
+	background: var(--ccb-bg); color: var(--ccb-text); padding: 36px 36px 28px;
+}
+.ccb-modal__close {
+	position: absolute; top: 10px; inset-inline-end: 14px; background: none; border: 0;
+	font-size: 30px; line-height: 1; color: var(--ccb-text); cursor: pointer; padding: 4px;
+}
+.ccb-modal .ccb__title { font-size: 26px; padding-inline-end: 30px; }
+.ccb-modal .ccb__msg { margin-bottom: 18px; }
+.ccb-cat { border-top: 1px solid rgba(0, 0, 0, .12); padding: 16px 0 6px; }
+.ccb-cat p { margin: 6px 0 8px; font-size: 14px; line-height: 1.5; opacity: .8; }
+.ccb-cat__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; font-size: 16px; }
+.ccb-cat__on { font-size: 13px; opacity: .7; }
+.ccb-switch { position: relative; width: 46px; height: 26px; flex: 0 0 auto; }
+.ccb-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.ccb-switch span { position: absolute; inset: 0; border-radius: 26px; background: #c9c9c9; transition: background .2s; pointer-events: none; }
+.ccb-switch span::after { content: ''; position: absolute; top: 3px; inset-inline-start: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.ccb-switch input:checked + span { background: var(--ccb-btn); }
+.ccb-switch input:checked + span::after { transform: translateX(20px); }
+[dir="rtl"] .ccb-switch input:checked + span::after { transform: translateX(-20px); }
+.ccb-switch input:focus-visible + span { outline: 2px solid var(--ccb-btn); outline-offset: 2px; }
+.ccb-modal__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.ccb-modal__actions .ccb__btn { flex: 1 1 auto; padding: 12px 18px; font-size: 15px; min-height: 46px; }
+.ccb-modal__policy { margin: 16px 0 0; font-size: 13px; }
+.ccb-modal__policy a { color: inherit; }
