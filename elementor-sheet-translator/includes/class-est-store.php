@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
 
 class EST_Store {
 
-	const DB_VERSION = '1';
+	const DB_VERSION = '2';
 
 	private static $dicts = array();
 
@@ -30,6 +30,7 @@ class EST_Store {
 				source_hash char(32) NOT NULL,
 				source longtext NOT NULL,
 				translation longtext NOT NULL,
+				outdated tinyint(1) NOT NULL DEFAULT 0,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				UNIQUE KEY lang_hash (lang,source_hash),
@@ -75,7 +76,7 @@ class EST_Store {
 	/**
 	 * Insert or update a translation. An empty translation deletes it.
 	 */
-	public static function save( $lang, $source, $translation ) {
+	public static function save( $lang, $source, $translation, $outdated = 0 ) {
 		global $wpdb;
 		$source = EST_Text::normalize( $source );
 		if ( '' === $source ) {
@@ -83,19 +84,20 @@ class EST_Store {
 		}
 		$hash        = md5( $source );
 		$translation = str_replace( array( "\r\n", "\r" ), "\n", trim( (string) $translation ) );
-		unset( self::$dicts[ $lang ], self::$dicts[ $lang . ':map' ] );
+		unset( self::$dicts[ $lang ], self::$dicts[ $lang . ':map' ], self::$dicts[ $lang . ':outdated' ] );
 
 		if ( '' === $translation ) {
 			return (bool) $wpdb->delete( self::table(), array( 'lang' => $lang, 'source_hash' => $hash ) );
 		}
 		return false !== $wpdb->query(
 			$wpdb->prepare(
-				'INSERT INTO ' . self::table() . ' (lang, source_hash, source, translation, updated_at) VALUES (%s, %s, %s, %s, %s)
-				ON DUPLICATE KEY UPDATE source = VALUES(source), translation = VALUES(translation), updated_at = VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				'INSERT INTO ' . self::table() . ' (lang, source_hash, source, translation, outdated, updated_at) VALUES (%s, %s, %s, %s, %d, %s)
+				ON DUPLICATE KEY UPDATE source = VALUES(source), translation = VALUES(translation), outdated = VALUES(outdated), updated_at = VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				$lang,
 				$hash,
 				$source,
 				$translation,
+				$outdated ? 1 : 0,
 				current_time( 'mysql', true )
 			)
 		);
@@ -117,6 +119,27 @@ class EST_Store {
 			self::$dicts[ $key . ':map' ] = $map;
 		}
 		return self::$dicts[ $key . ':map' ];
+	}
+
+	/**
+	 * Translations carried over after their English text was edited, waiting
+	 * for a check: [ source_hash => true ].
+	 */
+	public static function outdated( $lang ) {
+		global $wpdb;
+		$key = $lang . ':outdated';
+		if ( ! isset( self::$dicts[ $key ] ) ) {
+			$hashes             = $wpdb->get_col( $wpdb->prepare( 'SELECT source_hash FROM ' . self::table() . ' WHERE lang = %s AND outdated = 1', $lang ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			self::$dicts[ $key ] = array_fill_keys( (array) $hashes, true );
+		}
+		return self::$dicts[ $key ];
+	}
+
+	/** Mark a translation as checked. */
+	public static function mark_reviewed( $lang, $hash ) {
+		global $wpdb;
+		unset( self::$dicts[ $lang . ':outdated' ] );
+		$wpdb->update( self::table(), array( 'outdated' => 0 ), array( 'lang' => $lang, 'source_hash' => $hash ) );
 	}
 
 	public static function count( $lang ) {

@@ -78,6 +78,7 @@ class EST_Admin {
 			.est-wrap .est-seo td { vertical-align: top; }
 			.est-wrap .est-seo input, .est-wrap .est-seo textarea { margin-bottom: 2px; }
 			.est-wrap .est-counter { display: block; font-size: 11px; margin-bottom: 6px; }
+			.est-wrap .est-changed { display: inline-block; margin-top: 4px; padding: 1px 7px; border-radius: 10px; background: #fcf0e3; color: #8a4b0b; font-size: 11px; font-weight: 500; }
 			.est-wrap code.est-big { font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 		</style>
 		<?php
@@ -219,13 +220,20 @@ class EST_Admin {
 							<td><?php echo (int) $total; ?></td>
 							<?php
 							foreach ( $langs as $code => $l ) :
-								$done = 0;
+								$done  = 0;
+								$check = 0;
+								$old   = EST_Store::outdated( $code );
 								foreach ( $strings as $t ) {
-									$done += isset( $dicts[ $code ][ md5( $t ) ] ) ? 1 : 0;
+									$done  += isset( $dicts[ $code ][ md5( $t ) ] ) ? 1 : 0;
+									$check += isset( $old[ md5( $t ) ] ) ? 1 : 0;
 								}
 								$pct = $total ? (int) round( 100 * $done / $total ) : 100;
 								?>
-								<td><span class="est-progress"><span style="width:<?php echo (int) $pct; ?>%"></span></span><?php echo (int) $done . '/' . (int) $total; ?></td>
+								<td><span class="est-progress"><span style="width:<?php echo (int) $pct; ?>%"></span></span><?php echo (int) $done . '/' . (int) $total; ?>
+									<?php if ( $check ) : ?>
+										<br><span class="est-changed" title="<?php esc_attr_e( 'The English text was edited; the previous translation is still shown. Check it on the Translate screen.', 'est' ); ?>"><?php echo esc_html( sprintf( /* translators: %d: count */ _n( '%d to check', '%d to check', $check, 'est' ), $check ) ); ?></span>
+									<?php endif; ?>
+								</td>
 							<?php endforeach; ?>
 							<td>
 								<?php if ( $zip ) : ?>
@@ -486,6 +494,7 @@ class EST_Admin {
 			if ( $key && $lang && EST_Content::source( $key ) ) :
 				$strings = EST_Content::strings( $key );
 				$dict    = EST_Store::dictionary( $code );
+				$changed = EST_Store::outdated( $code );
 				?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<?php wp_nonce_field( 'est_save_translations' ); ?>
@@ -501,7 +510,11 @@ class EST_Admin {
 						<?php foreach ( $strings as $text ) : ?>
 							<?php $h = md5( $text ); ?>
 							<tr>
-								<td><div class="est-source"><?php echo esc_html( $text ); ?></div></td>
+								<td><div class="est-source"><?php echo esc_html( $text ); ?></div>
+									<?php if ( isset( $changed[ $h ] ) ) : ?>
+										<span class="est-changed" title="<?php esc_attr_e( 'The English text was edited in Elementor. The previous translation is kept and still shown - check it, then save.', 'est' ); ?>"><?php esc_html_e( 'English changed - check translation', 'est' ); ?></span>
+									<?php endif; ?>
+								</td>
 								<td><textarea name="t[<?php echo esc_attr( $h ); ?>]" dir="<?php echo esc_attr( $lang['dir'] ); ?>" rows="<?php echo (int) min( 8, max( 2, ceil( mb_strlen( $text ) / 70 ) ) ); ?>"><?php echo esc_textarea( $dict[ $h ] ?? '' ); ?></textarea></td>
 							</tr>
 						<?php endforeach; ?>
@@ -522,8 +535,9 @@ class EST_Admin {
 		if ( ! EST_Settings::language( $code ) || ! EST_Content::source( $key ) ) {
 			self::back( 'est-editor', __( 'Unknown page or language.', 'est' ), true );
 		}
-		$dict  = EST_Store::dictionary( $code );
-		$saved = 0;
+		$dict    = EST_Store::dictionary( $code );
+		$changed = EST_Store::outdated( $code );
+		$saved   = 0;
 		foreach ( EST_Content::strings( $key ) as $text ) {
 			$h = md5( $text );
 			if ( ! array_key_exists( $h, $in ) ) {
@@ -531,6 +545,10 @@ class EST_Admin {
 			}
 			$value = trim( (string) $in[ $h ] );
 			if ( $value === ( $dict[ $h ] ?? '' ) ) {
+				// Saving the page counts as having checked a carried-over translation.
+				if ( isset( $changed[ $h ] ) && '' !== $value ) {
+					EST_Store::mark_reviewed( $code, $h );
+				}
 				continue;
 			}
 			EST_Store::save( $code, $text, $value );

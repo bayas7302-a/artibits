@@ -119,6 +119,40 @@ class EST_Extractor {
 	 * @param array $elements Decoded Elementor data.
 	 * @return string[]
 	 */
+	/**
+	 * [ "elementId/settingKey[/index/subKey]" => normalised text ] - where each
+	 * text lives, so an edit can be matched to the text it replaced.
+	 */
+	public static function extract_paths( $elements, $prefix = '' ) {
+		$out = array();
+		foreach ( (array) $elements as $i => $el ) {
+			if ( ! is_array( $el ) ) {
+				continue;
+			}
+			$id = isset( $el['id'] ) ? (string) $el['id'] : $prefix . $i;
+			if ( isset( $el['settings'] ) && is_array( $el['settings'] ) ) {
+				self::settings_paths( $el['settings'], $id, $out );
+			}
+			if ( ! empty( $el['elements'] ) ) {
+				$out += self::extract_paths( $el['elements'], $id . '.' );
+			}
+		}
+		return $out;
+	}
+
+	private static function settings_paths( array $settings, $path, array &$out ) {
+		foreach ( $settings as $key => $value ) {
+			if ( is_array( $value ) ) {
+				if ( self::walk_into( $key ) ) {
+					$seg = isset( $value['_id'] ) && is_scalar( $value['_id'] ) ? 'r:' . $value['_id'] : $key;
+					self::settings_paths( $value, $path . '/' . $seg, $out );
+				}
+			} elseif ( self::is_translatable( $key, $value ) ) {
+				$out[ $path . '/' . $key ] = EST_Text::normalize( $value );
+			}
+		}
+	}
+
 	public static function extract( $elements ) {
 		$out = array();
 		if ( is_array( $elements ) ) {

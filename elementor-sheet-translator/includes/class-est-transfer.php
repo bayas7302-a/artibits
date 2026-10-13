@@ -26,6 +26,7 @@ class EST_Transfer {
 	public static function build_sheets( array $source_keys, array $codes, $include_existing = true, $only_missing = false, $with_images = false ) {
 		$header = array( EST_Settings::header_label( EST_Settings::default_language() ) );
 		$dicts  = array();
+		$olds   = array();
 		foreach ( $codes as $code ) {
 			$lang = EST_Settings::language( $code );
 			if ( ! $lang ) {
@@ -33,7 +34,9 @@ class EST_Transfer {
 			}
 			$header[]       = EST_Settings::header_label( $lang );
 			$dicts[ $code ] = EST_Store::dictionary( $code );
+			$olds[ $code ]  = EST_Store::outdated( $code );
 		}
+		$header[] = 'Note';
 
 		$sheets = array();
 		foreach ( $source_keys as $key ) {
@@ -46,11 +49,17 @@ class EST_Transfer {
 				$hash    = md5( $text );
 				$row     = array( $text );
 				$missing = false;
-				foreach ( $dicts as $dict ) {
+				$changed = array();
+				foreach ( $dicts as $code => $dict ) {
 					$has     = isset( $dict[ $hash ] );
-					$missing = $missing || ! $has;
+					$missing = $missing || ! $has || isset( $olds[ $code ][ $hash ] );
 					$row[]   = ( $include_existing && $has ) ? $dict[ $hash ] : '';
+					if ( isset( $olds[ $code ][ $hash ] ) ) {
+						$changed[] = $code;
+					}
 				}
+				// Only for information; the Note column is ignored on import.
+				$row[] = $changed ? 'English changed - check ' . strtoupper( implode( ', ', $changed ) ) : '';
 				if ( $only_missing && ! $missing ) {
 					continue;
 				}
@@ -151,6 +160,9 @@ class EST_Transfer {
 			$map    = array();
 			foreach ( $header as $col => $cell ) {
 				if ( 0 === $col ) {
+					continue;
+				}
+				if ( 0 === strcasecmp( trim( (string) $cell ), 'Note' ) ) {
 					continue;
 				}
 				$code = EST_Settings::code_from_header( $cell );
