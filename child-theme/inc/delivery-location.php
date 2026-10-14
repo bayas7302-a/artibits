@@ -160,10 +160,11 @@ function soharon_loc_picker( $loc, $required = false ) {
 	<?php
 }
 
-/* Required pin (only if the setting is on and the map actually loaded) */
+/* Required pin (not when the map failed to load, or for Apple Pay / Google Pay express payments) */
 add_action( 'woocommerce_after_checkout_validation', function ( $data, $errors ) {
 	if ( '' === soharon_loc_key() || ! soharon_loc_required() || ! WC()->cart || ! WC()->cart->needs_shipping_address() ) return;
 	if ( ! empty( $_POST['soharon_loc_unavailable'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification -- map failed to load: don't block the order
+	if ( ! empty( $_POST['express_checkout_type'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification -- Apple Pay / Google Pay / Link: the map is not part of their payment sheet
 	if ( ! soharon_loc_from_post() ) {
 		$errors->add( 'soharon_loc_required', '<strong>Delivery location pin</strong> is a required field. Please move the pin on the map to your location.' );
 	}
