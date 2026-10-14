@@ -301,14 +301,12 @@ function fve_render_events( $atts ) {
 		$location = get_post_meta( $id, '_fve_location', true );
 		$time     = get_post_meta( $id, '_fve_time', true );
 		$date     = fve_date_label( $id );
-		$is_past  = isset( $past_ids[ $id ] );
 		$slug     = get_post_field( 'post_name', $id );
 		$img      = get_post_thumbnail_id( $id );
 		$content  = get_post_field( 'post_content', $id );
 		?>
 		<li class="fve-item">
 			<button type="button" class="fve-card" data-fve-open="fve-<?php echo esc_attr( $slug ); ?>" aria-haspopup="dialog">
-				<?php if ( $is_past && ! $tabs ) : ?><span class="fve-tag">Past event</span><?php endif; ?>
 				<span class="fve-card__title"><?php echo esc_html( $title ); ?></span>
 				<?php if ( $location ) : ?><span class="fve-card__loc"><?php echo esc_html( $location ); ?></span><?php endif; ?>
 				<?php if ( $date ) : ?><span class="fve-card__date"><?php echo esc_html( $date ); ?></span><?php endif; ?>
@@ -428,7 +426,6 @@ function fve_print_assets() {
 .fve-card__more svg{display:block;transition:transform .2s}
 .fve .fve-card:hover .fve-card__more,.fve .fve-card:focus-visible .fve-card__more{background:#B30F17;color:#fff}
 .fve .fve-card:hover .fve-card__more svg{transform:translateX(3px)}
-.fve-tag{position:static;align-self:center;margin:0 0 6px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600;line-height:1.4}
 .fve-empty{padding:40px 16px;text-align:center;color:var(--fve-muted)}
 
 /* Popup */
