@@ -56,7 +56,7 @@
 			}
 			var s = document.createElement( 'script' );
 			Array.prototype.forEach.call( old.attributes, function ( a ) {
-				if ( 'type' === a.name || 'data-ccb' === a.name || 'data-ccb-src' === a.name ) {
+				if ( /^(type|data-ccb|data-ccb-src|nowprocket|data-no-optimize|data-rocket-.*)$/.test( a.name ) ) {
 					return;
 				}
 				s.setAttribute( a.name, a.value );

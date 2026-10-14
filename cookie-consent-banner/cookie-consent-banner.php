@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Cookie Consent Banner
  * Description:       GDPR / CNIL cookie banner (Allow all / Reject all / Cookie settings). Blocks Google Analytics (including Site Kit's Google tag) and other trackers until the visitor accepts, and sends Google Consent Mode v2 signals. Texts per language, works with Elementor Sheet Translator.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            ArtiBits
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CCB_VERSION', '1.1.0' );
+define( 'CCB_VERSION', '1.1.1' );
 define( 'CCB_URL', plugin_dir_url( __FILE__ ) );
 define( 'CCB_DIR', plugin_dir_path( __FILE__ ) );
 

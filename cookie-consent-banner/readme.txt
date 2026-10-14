@@ -1,7 +1,7 @@
 === Cookie Consent Banner ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 
 GDPR / CNIL cookie banner that blocks Google Analytics until the visitor accepts.

@@ -140,7 +140,8 @@ class CCB {
 	 * Printed first in <head>, before any Google tag.
 	 */
 	public static function consent_defaults() {
-		echo "<script data-ccb-skip>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',functionality_storage:'granted',security_storage:'granted',wait_for_update:500});</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput
+		// nowprocket / data-no-optimize: never delayed or combined by WP Rocket and similar plugins.
+		echo "<script data-ccb-skip nowprocket data-no-optimize=\"1\" data-no-defer=\"1\" data-cfasync=\"false\">window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',functionality_storage:'granted',security_storage:'granted',wait_for_update:500});</script>\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 	}
 
 	public static function assets() {
@@ -217,17 +218,22 @@ class CCB {
 			'#<script\b([^>]*)>(.*?)</script>#is',
 			function ( $m ) {
 				$attrs = $m[1];
-				// Leave JSON / templates and already-plain scripts alone.
-				if ( preg_match( '/\stype=(["\'])(?!text\/javascript|module|application\/javascript)[^"\']*\1/i', $attrs ) ) {
+				// Leave JSON / templates and already-plain scripts alone. Scripts delayed by
+				// WP Rocket ("rocketlazyloadscript") are still JavaScript and must be blocked.
+				if ( preg_match( '/\stype=(["\'])(?!text\/javascript|module|application\/javascript|rocketlazyloadscript)[^"\']*\1/i', $attrs ) ) {
 					return $m[0];
 				}
-				$cat = self::category( $attrs, $m[2] );
+				// Delayed scripts keep their URL in data-rocket-src.
+				$check = preg_replace( '/\sdata-rocket-src=/i', ' src=', $attrs );
+				$cat   = self::category( $check, $m[2] );
 				if ( '' === $cat ) {
 					return $m[0];
 				}
-				$attrs = preg_replace( '/\stype=(["\'])[^"\']*\1/i', '', $attrs );
-				$attrs = preg_replace( '/\ssrc=/i', ' data-ccb-src=', $attrs );
-				return '<script type="text/plain" data-ccb="' . $cat . '"' . $attrs . '>' . $m[2] . '</script>';
+				$attrs = preg_replace( '/\s(type|data-rocket-type)=(["\'])[^"\']*\2/i', '', $attrs );
+				$attrs = preg_replace( '/\s(data-rocket-src|src)=/i', ' data-ccb-src=', $attrs );
+				$attrs = preg_replace( '/\s(nowprocket|data-no-optimize|data-no-defer)(=(["\'])[^"\']*\3)?/i', '', $attrs );
+				// nowprocket: WP Rocket must not delay the placeholder, ccb.js restores it.
+				return '<script type="text/plain" data-ccb="' . $cat . '" nowprocket data-no-optimize="1"' . $attrs . '>' . $m[2] . '</script>';
 			},
 			$html
 		);
