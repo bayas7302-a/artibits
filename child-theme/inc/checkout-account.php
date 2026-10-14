@@ -527,10 +527,53 @@ function soharon_checkout_payment_section() {
     echo '<div class="soharon-pay-section">';
     if ( WC()->cart && WC()->cart->needs_payment() ) {
         echo '<h3 class="soharon-pay-title">Payment</h3>';
+        // Apple Pay / Google Pay buttons (Stripe), moved here from the top of the form
+        $express = soharon_stripe_express_element();
+        if ( $express ) {
+            echo '<div class="soharon-express">';
+            $express->display_express_checkout_button_html();
+            echo '</div>';
+        }
     }
     woocommerce_checkout_payment();
     echo '</div>';
 }
+
+/* Stripe's Apple Pay / Google Pay buttons: not at the top of the checkout,
+   but in the Payment section (above the payment methods) */
+function soharon_stripe_express_element() {
+    static $element = false;
+    if ( false !== $element ) return $element;
+    $element = null;
+    global $wp_filter;
+    $hook = 'woocommerce_checkout_before_customer_details';
+    if ( empty( $wp_filter[ $hook ] ) ) return $element;
+    foreach ( $wp_filter[ $hook ]->callbacks as $priority => $callbacks ) {
+        foreach ( $callbacks as $cb ) {
+            $fn = $cb['function'];
+            if ( is_array( $fn ) && is_object( $fn[0] ) && 'display_express_checkout_button_html' === $fn[1]
+                && is_a( $fn[0], 'WC_Stripe_Express_Checkout_Element' ) ) {
+                remove_action( $hook, $fn, $priority );
+                $element = $fn[0];
+            }
+        }
+    }
+    return $element;
+}
+add_action( 'wp', function () {
+    if ( function_exists( 'is_checkout' ) && is_checkout() && ! is_wc_endpoint_url( 'order-pay' ) ) {
+        soharon_stripe_express_element(); // unhook from the top of the form
+    }
+}, 20 );
+
+/* Rounded (pill) Apple Pay / Google Pay buttons */
+add_filter( 'wc_stripe_express_checkout_params', function ( $params ) {
+    if ( isset( $params['button'] ) && is_array( $params['button'] ) ) {
+        $height = isset( $params['button']['height'] ) ? (int) $params['button']['height'] : 48;
+        $params['button']['radius'] = (string) max( 4, (int) round( $height / 2 ) );
+    }
+    return $params;
+} );
 
 /* Checkout + thank-you layout */
 function soharon_checkout_css() {
@@ -617,6 +660,8 @@ function soharon_checkout_css() {
 /* "Payment" heading above the methods */
 {S} .soharon-pay-section{ margin-top:24px; padding-top:24px; border-top:1px solid var(--s-border); }
 {S} .soharon-pay-title{ margin:0 0 14px; font-size:18px; font-weight:600; color:var(--s-text); }
+{S} .soharon-express #wc-stripe-express-checkout-element{ margin-top:0 !important; }
+{S} .soharon-express #wc-stripe-express-checkout-button-separator{ margin:16px 0 18px !important; font-size:13px; color:var(--s-muted); letter-spacing:.06em; }
 {S} .soharon-pay-section #payment{ margin-top:0; }
 {S} #payment div.form-row{ margin:0; padding:0; }
 {S} .woocommerce-privacy-policy-text p,
