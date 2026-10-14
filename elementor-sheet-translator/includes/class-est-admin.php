@@ -990,6 +990,7 @@ class EST_Admin {
 						<span class="est-muted"><?php esc_html_e( 'The language shown at the main address (e.g. site.com/). Every other language, including the one the pages are written in, gets its own prefix (e.g. /en/). Pages are still edited in the source language and the spreadsheets do not change.', 'est' ); ?></span>
 					</p>
 					<p><label><input type="checkbox" name="enable_copies" value="1" <?php checked( ! empty( $s['enable_copies'] ) ); ?>> <?php esc_html_e( 'Allow a separate Elementor design per language ("Create AR version"). Leave off to translate only from the spreadsheets, with no language editing in the Elementor editor.', 'est' ); ?></label></p>
+					<p><label><input type="checkbox" name="translate_slugs" value="1" <?php checked( ! empty( $s['translate_slugs'] ) ); ?>> <?php esc_html_e( 'Translate page URLs: each translated page gets an address made from its translated title (e.g. /es/sobre-nosotros/ instead of /es/about-us/). Pages without a translated title keep their address; old addresses redirect to the new ones.', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="localize_links" value="1" <?php checked( $s['localize_links'] ); ?>> <?php esc_html_e( 'Keep visitors in their language: rewrite internal links on translated pages (e.g. /contact-us/ becomes /ar/contact-us/).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="html_fallback" value="1" <?php checked( $s['html_fallback'] ); ?>> <?php esc_html_e( 'Also translate matching plain text in the final page HTML (catches theme and widget texts that are not stored in Elementor data).', 'est' ); ?></label></p>
 					<p><label><input type="checkbox" name="hreflang" value="1" <?php checked( $s['hreflang'] ); ?>> <?php esc_html_e( 'Output hreflang links for SEO.', 'est' ); ?></label></p>
@@ -1093,6 +1094,7 @@ class EST_Admin {
 				'lang_order'       => $order,
 				'html_fallback'    => empty( $p['html_fallback'] ) ? 0 : 1,
 				'enable_copies'    => empty( $p['enable_copies'] ) ? 0 : 1,
+				'translate_slugs'  => empty( $p['translate_slugs'] ) ? 0 : 1,
 				'localize_links'   => empty( $p['localize_links'] ) ? 0 : 1,
 				'hreflang'         => empty( $p['hreflang'] ) ? 0 : 1,
 				'delete_uninstall' => empty( $p['delete_uninstall'] ) ? 0 : 1,

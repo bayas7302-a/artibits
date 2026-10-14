@@ -1,7 +1,7 @@
 === Elementor Sheet Translator ===
 Requires at least: 5.8
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 License: GPLv2 or later
 
 Translate an Elementor website with spreadsheets. English in column A, one column per language, import back, done.
@@ -100,3 +100,9 @@ the sheet; the import creates the language for you.
   translation" on the Translate screen, counted as "to check" on the Content screen and
   noted in a "Note" column in exports. Saving the page on the Translate screen or
   importing the row again clears the mark.
+* Translated URLs (optional, OFF by default - Languages & Settings > "Translate page URLs"):
+  each page / post gets an address made from its translated title, e.g. /es/sobre-nosotros/
+  instead of /es/about-us/ (child pages too: /es/servicios/diseno-web/). Pages whose title is
+  not translated keep their address. The old address redirects (301) to the new one; menus,
+  links, the switchers, hreflang and canonical tags use the translated address. The
+  addresses update automatically after an import or when a page is saved.

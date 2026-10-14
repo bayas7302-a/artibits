@@ -22,6 +22,7 @@ class EST_Settings {
 			'front_code'       => '',
 			'lang_order'       => array(),
 			'enable_copies'    => 0,
+			'translate_slugs'  => 0,
 			'languages'        => array(),
 			'extra_keys'       => '',
 			'html_fallback'    => 1,

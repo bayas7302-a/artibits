@@ -17,6 +17,7 @@ class EST_Router {
 	private static $home_path = '';
 	private static $request   = '/';
 	private static $parsing   = false;
+	private static $slug_hit  = false;
 
 	/**
 	 * Runs while plugins load: read the language from the URL.
@@ -48,15 +49,32 @@ class EST_Router {
 
 		$path = (string) wp_parse_url( self::$request, PHP_URL_PATH );
 		$code = self::code_from_path( $path );
+		$rel  = (string) substr( $path, strlen( self::$home_path ) );
 		if ( ! $code ) {
+			// The language shown at the root may have translated addresses too.
+			$orig = self::$current !== EST_Settings::default_code() ? EST_Slugs::to_original( $rel, self::$current ) : null;
+			if ( null !== $orig ) {
+				self::$slug_hit = true;
+				$query          = (string) wp_parse_url( self::$request, PHP_URL_QUERY );
+				self::$request  = self::$home_path . $orig . ( '' !== $query ? '?' . $query : '' );
+				$_SERVER['REQUEST_URI'] = self::$request;
+				self::map_path_info( $rel, $orig );
+			}
 			return;
 		}
 		self::$current = $code;
 
-		$rel   = substr( $path, strlen( self::$home_path ) );
 		$rest  = substr( $rel, strlen( $code ) + 1 );
 		$rest  = ( '' === $rest || false === $rest ) ? '/' : $rest;
 		$query = (string) wp_parse_url( self::$request, PHP_URL_QUERY );
+		$tr    = $rest;
+		if ( $code !== EST_Settings::default_code() ) {
+			$orig = EST_Slugs::to_original( $rest, $code );
+			if ( null !== $orig ) {
+				self::$slug_hit = true;
+				$rest           = $orig;
+			}
+		}
 
 		self::$request          = self::$home_path . $rest . ( '' !== $query ? '?' . $query : '' );
 		$_SERVER['REQUEST_URI'] = self::$request;
@@ -74,6 +92,32 @@ class EST_Router {
 				}
 			}
 		}
+		if ( self::$slug_hit ) {
+			self::map_path_info( $tr, $rest );
+		}
+	}
+
+	/** Translated slug in PATH_INFO too (see above). */
+	private static function map_path_info( $from, $to ) {
+		foreach ( array( 'PATH_INFO', 'ORIG_PATH_INFO' ) as $key ) {
+			if ( ! empty( $_SERVER[ $key ] ) ) {
+				$info = (string) $_SERVER[ $key ]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+				$pos  = strripos( $info, rtrim( $from, '/' ) );
+				if ( false !== $pos && '/' !== $from ) {
+					$_SERVER[ $key ] = substr( $info, 0, $pos ) . $to;
+				}
+			}
+		}
+	}
+
+	/** The request path WordPress sees (language prefix removed, original slugs). */
+	public static function requested_path() {
+		return self::$request;
+	}
+
+	/** Was the page requested by its translated address? */
+	public static function was_translated_slug() {
+		return self::$slug_hit;
 	}
 
 	private static function code_from_path( $path ) {
@@ -177,9 +221,19 @@ class EST_Router {
 		}
 
 		// Remove an existing language prefix, then add the wanted one.
+		$from = EST_Settings::front_code();
 		if ( preg_match( '#^/([a-z]{2,3}(?:-[a-z0-9]{2,4})?)(/|$)#i', $path, $m ) && EST_Settings::is_live_code( strtolower( $m[1] ) ) ) {
+			$from = strtolower( $m[1] );
 			$path = substr( $path, strlen( $m[1] ) + 1 );
 			$path = '' === $path ? '/' : $path;
+		}
+		// Translated addresses: back to the original slug, then to the wanted language's.
+		if ( EST_Slugs::enabled() ) {
+			$default = EST_Settings::default_code();
+			$orig    = $from !== $default ? EST_Slugs::to_original( $path, $from ) : null;
+			$path    = null !== $orig ? $orig : $path;
+			$new     = $code !== $default ? EST_Slugs::to_translated( $path, $code ) : null;
+			$path    = null !== $new ? $new : $path;
 		}
 		if ( EST_Settings::front_code() !== $code ) {
 			$path = '/' . $code . ( '/' === $path ? '/' : $path );
