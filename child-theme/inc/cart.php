@@ -88,7 +88,6 @@ function soharon_get_cart_table_html() {
             $regular_raw = $product->is_on_sale() && '' !== $product->get_regular_price()
                 ? (float) wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) ) : 0;
             $save_line   = $regular_raw > $unit_raw ? ( $regular_raw - $unit_raw ) * $qty : 0;
-            $save_pct    = $save_line > 0 ? round( ( 1 - $unit_raw / $regular_raw ) * 100 ) : 0;
             ?>
             <div class="soharon-cart-row"
                  data-cart-key="<?php echo esc_attr( $cart_item_key ); ?>"
@@ -123,7 +122,6 @@ function soharon_get_cart_table_html() {
                 <div class="col-discount">
                     <?php if ( $save_line > 0 ) : ?>
                         <span class="soharon-save">&minus;<?php echo wp_kses_post( wc_price( $save_line ) ); ?></span>
-                        <span class="soharon-save-pct"><?php echo (int) $save_pct; ?>% off</span>
                     <?php else : ?>
                         —
                     <?php endif; ?>
@@ -301,7 +299,6 @@ function soharon_custom_cart_css() {
 .soharon-cart-row .col-discount{ color:var(--s-muted); }
 .soharon-cart-row .col-price .soharon-was{ display:block; margin-top:2px; font-size:12px; font-weight:400; color:var(--s-muted); }
 .soharon-save{ display:block; font-size:15px; font-weight:600; color:#17804A; }
-.soharon-save-pct{ display:inline-block; margin-top:4px; padding:1px 8px; border-radius:999px; background:#E8F5EE; color:#17804A; font-size:12px; font-weight:600; }
 .soharon-save-mobile{ display:none; font-size:12px; font-weight:600; color:#17804A; }
 
 /* ---------- Quantity stepper ---------- */
