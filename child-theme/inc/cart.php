@@ -84,6 +84,11 @@ function soharon_get_cart_table_html() {
             $name      = $product->get_name();
             $unit_raw  = wc_get_price_to_display( $product );
             $in_stock  = $product->is_in_stock();
+            // Saving on sale / promotion prices: (regular − sale) × quantity
+            $regular_raw = $product->is_on_sale() && '' !== $product->get_regular_price()
+                ? (float) wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) ) : 0;
+            $save_line   = $regular_raw > $unit_raw ? ( $regular_raw - $unit_raw ) * $qty : 0;
+            $save_pct    = $save_line > 0 ? round( ( 1 - $unit_raw / $regular_raw ) * 100 ) : 0;
             ?>
             <div class="soharon-cart-row"
                  data-cart-key="<?php echo esc_attr( $cart_item_key ); ?>"
@@ -100,16 +105,29 @@ function soharon_get_cart_table_html() {
                             <span class="soharon-sku"><?php echo esc_html( $sku ); ?></span>
                         <?php endif; ?>
                         <span class="soharon-name"><?php echo esc_html( $name ); ?></span>
-                        <span class="soharon-stock">
+                        <span class="soharon-stock<?php echo $in_stock ? ' is-in' : ''; ?>">
                             <span class="soharon-dot <?php echo $in_stock ? 'in' : 'out'; ?>"></span>
                             <?php echo $in_stock ? 'In stock' : 'Out of stock'; ?>
                         </span>
+                        <?php if ( $save_line > 0 ) : ?>
+                            <span class="soharon-save-mobile">You save <?php echo wp_kses_post( wc_price( $save_line ) ); ?></span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <div class="col-price"><?php echo WC()->cart->get_product_price( $product ); ?></div>
+                <div class="col-price">
+                    <?php echo WC()->cart->get_product_price( $product ); ?>
+                    <?php if ( $save_line > 0 ) : ?><del class="soharon-was"><?php echo wp_kses_post( wc_price( $regular_raw ) ); ?></del><?php endif; ?>
+                </div>
 
-                <div class="col-discount">—</div>
+                <div class="col-discount">
+                    <?php if ( $save_line > 0 ) : ?>
+                        <span class="soharon-save">&minus;<?php echo wp_kses_post( wc_price( $save_line ) ); ?></span>
+                        <span class="soharon-save-pct"><?php echo (int) $save_pct; ?>% off</span>
+                    <?php else : ?>
+                        —
+                    <?php endif; ?>
+                </div>
 
                 <div class="col-qty">
                     <div class="soharon-qty">
@@ -275,11 +293,16 @@ function soharon_custom_cart_css() {
 .soharon-name{ font-size:15px; font-weight:600; line-height:1.35; }
 .soharon-stock{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#6B6B6B; }
 .soharon-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
-.soharon-dot.in{ background:var(--s-red); }
+.soharon-dot.in{ background:#17804A; }
+.soharon-stock.is-in{ color:#17804A; }
 .soharon-dot.out{ background:#BBB; }
 
 .soharon-cart-row .col-price,.soharon-cart-row .col-subtotal{ font-size:15px; font-weight:600; }
 .soharon-cart-row .col-discount{ color:var(--s-muted); }
+.soharon-cart-row .col-price .soharon-was{ display:block; margin-top:2px; font-size:12px; font-weight:400; color:var(--s-muted); }
+.soharon-save{ display:block; font-size:15px; font-weight:600; color:#17804A; }
+.soharon-save-pct{ display:inline-block; margin-top:4px; padding:1px 8px; border-radius:999px; background:#E8F5EE; color:#17804A; font-size:12px; font-weight:600; }
+.soharon-save-mobile{ display:none; font-size:12px; font-weight:600; color:#17804A; }
 
 /* ---------- Quantity stepper ---------- */
 .soharon-qty{
@@ -366,6 +389,7 @@ function soharon_custom_cart_css() {
     .soharon-cart-row{ grid-template-columns:1fr auto; row-gap:14px; position:relative; padding:16px; }
     .soharon-cart-row .col-product{ grid-column:1 / -1; padding-right:40px; }
     .soharon-cart-row .col-price,.soharon-cart-row .col-discount{ display:none; }
+    .soharon-save-mobile{ display:block; }
     .soharon-cart-row .col-subtotal{ text-align:right; }
     .soharon-cart-row .col-remove{ position:absolute; top:12px; right:12px; }
     .soharon-cart-summary{ flex:1 1 100%; min-width:0; }
