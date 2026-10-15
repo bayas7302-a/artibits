@@ -301,6 +301,66 @@ function fvs_promo_meta_box( $post ) {
 		'<p class="description" style="margin:0">Show this product on the <a href="%s" target="_blank">Promotions page</a>.</p>',
 		esc_url( get_term_link( $term ) )
 	);
+
+	/* Promotion options (shown while "Promotion" is ticked) */
+	$badge = 'yes' === get_post_meta( $post->ID, '_fvs_promo_badge', true );
+	$multi = 'yes' === get_post_meta( $post->ID, '_fvs_promo_multi', true );
+	wp_nonce_field( 'fvs_promo_opts', 'fvs_promo_opts_nonce' );
+	?>
+	<div class="fvs-promo-opts" style="margin-top:12px;padding-top:10px;border-top:1px solid #dcdcde<?php echo $on ? '' : ';display:none'; ?>">
+		<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="fvs_promo_badge" value="yes"<?php checked( $badge ); ?>> Enable percentage badge</label>
+		<p class="description" style="margin:0 0 8px">Shows the "−10%" label on the product card.</p>
+		<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="fvs_promo_multi" value="yes" class="fvs-promo-multi"<?php checked( $multi ); ?>> Multi product</label>
+		<p class="description" style="margin:0 0 8px">Replaces Datasheet / Online information with "Product links".</p>
+		<div class="fvs-promo-products"<?php echo $multi ? '' : ' style="display:none"'; ?>>
+			<label for="fvs_promo_products" style="display:block;margin:4px 0;font-weight:600">Products in this promotion</label>
+			<select id="fvs_promo_products" class="wc-product-search" multiple="multiple" style="width:100%" name="fvs_promo_products[]" data-placeholder="Search for a product…" data-action="woocommerce_json_search_products" data-exclude="<?php echo (int) $post->ID; ?>">
+				<?php foreach ( fvs_promo_product_ids( $post->ID ) as $pid ) :
+					$p = wc_get_product( $pid );
+					if ( $p ) echo '<option value="' . (int) $pid . '" selected="selected">' . esc_html( wp_strip_all_tags( $p->get_formatted_name() ) ) . '</option>';
+				endforeach; ?>
+			</select>
+			<p class="description" style="margin:6px 0 0">Shown in this order on the product page.</p>
+		</div>
+	</div>
+	<script>
+	jQuery(function ($) {
+		var box = $('#<?php echo esc_js( FVS_PROMO_TAX ); ?>div, .fvs-promo-opts').first().closest('.postbox');
+		box.on('change', 'input[name^="tax_input"]', function () { box.find('.fvs-promo-opts').toggle(this.checked); });
+		box.on('change', '.fvs-promo-multi', function () { box.find('.fvs-promo-products').toggle(this.checked); });
+	});
+	</script>
+	<?php
+}
+
+/* Save the promotion options */
+add_action( 'save_post_product', function ( $post_id ) {
+	if ( empty( $_POST['fvs_promo_opts_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['fvs_promo_opts_nonce'] ), 'fvs_promo_opts' ) ) return;
+	if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) return;
+	update_post_meta( $post_id, '_fvs_promo_badge', empty( $_POST['fvs_promo_badge'] ) ? 'no' : 'yes' );
+	update_post_meta( $post_id, '_fvs_promo_multi', empty( $_POST['fvs_promo_multi'] ) ? 'no' : 'yes' );
+	$ids = isset( $_POST['fvs_promo_products'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['fvs_promo_products'] ) ) : array();
+	update_post_meta( $post_id, '_fvs_promo_products', array_values( array_unique( array_diff( array_filter( $ids ), array( $post_id ) ) ) ) );
+} );
+
+/* Promotion option helpers */
+function fvs_promo_product_ids( $product_id ) {
+	$ids = get_post_meta( $product_id, '_fvs_promo_products', true );
+	return is_array( $ids ) ? array_map( 'absint', $ids ) : array();
+}
+function fvs_is_promo( $product_id ) {
+	return has_term( FVS_PROMO_TERM, FVS_PROMO_TAX, $product_id );
+}
+/* "Multi product" promotion: the products to link to (published, visible), else empty */
+function fvs_promo_multi_products( $product ) {
+	$id = $product->get_id();
+	if ( 'yes' !== get_post_meta( $id, '_fvs_promo_multi', true ) || ! fvs_is_promo( $id ) ) return array();
+	$out = array();
+	foreach ( fvs_promo_product_ids( $id ) as $pid ) {
+		$p = wc_get_product( $pid );
+		if ( $p && 'publish' === $p->get_status() && $p->is_visible() ) $out[] = $p;
+	}
+	return $out;
 }
 
 /* ---------------------------------------------------------------------------
@@ -677,7 +737,9 @@ function fvs_render_card( $product ) {
 
 	/* Image carousel */
 	echo '<div class="fvs-media" data-fvs-carousel>';
-	if ( $product->is_on_sale() ) {
+	$is_promo = fvs_is_promo( $product->get_id() );
+	// promotion cards show the % badge only when "Enable percentage badge" is ticked
+	if ( $product->is_on_sale() && ( ! $is_promo || 'yes' === $product->get_meta( '_fvs_promo_badge' ) ) ) {
 		$regular = (float) $product->get_regular_price();
 		$sale    = (float) $product->get_sale_price();
 		$badge   = ( $regular > 0 && $sale > 0 && $sale < $regular ) ? '−' . round( ( 1 - $sale / $regular ) * 100 ) . '%' : 'Sale';
@@ -723,6 +785,9 @@ function fvs_render_card( $product ) {
 		if ( fvs_show_excl_vat() ) {
 			echo '<span class="fvs-card__tax">excl. VAT</span>';
 		}
+		if ( $is_promo ) {
+			echo fvs_offer_ends_html( $product ); // phpcs:ignore
+		}
 		echo '</div>';
 	} else {
 		echo '<div class="fvs-card__price fvs-card__price--poa">Price on request</div>';
@@ -738,6 +803,14 @@ function fvs_render_card( $product ) {
 	echo '</div></li>';
 }
 
+
+/* "Offer ends 30 October 2026" on promotion cards (from the sale end date) */
+function fvs_offer_ends_html( $product ) {
+	if ( ! $product->is_on_sale() ) return '';
+	$end = $product->get_date_on_sale_to();
+	if ( ! $end || $end->getTimestamp() <= time() ) return '';
+	return '<span class="fvs-card__offer">Offer ends <strong>' . esc_html( wc_format_datetime( $end, 'j F Y' ) ) . '</strong></span>';
+}
 
 /* "excl. VAT" is shown unless WooCommerce is set to display prices including tax */
 function fvs_show_excl_vat() {
@@ -924,6 +997,8 @@ function fvs_print_assets() {
 
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
+.fvs-card__offer{display:block;margin-top:6px;font-size:13px;font-weight:400;color:var(--fvs-red)}
+.fvs-card__offer strong{font-weight:600}
 .fvs-badge{position:absolute;top:12px;left:12px;z-index:2;padding:4px 10px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:12px;font-weight:600;line-height:1.3}
 .fvs-media{position:relative;background:var(--fvs-soft);overflow:hidden;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 .fvs .fvs-media__link,.fvs .fvs-media__link:focus{display:block;outline:none;border:0;box-shadow:none}

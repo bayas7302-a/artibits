@@ -116,6 +116,16 @@ function fvp_product_shortcode_render( $atts ) {
 	}
 	echo '</div>';
 
+	/* Multi-product promotions and products without a description:
+	   the summary goes in the right column (where Specifications usually are) */
+	$multi         = function_exists( 'fvs_promo_multi_products' ) ? fvs_promo_multi_products( $product ) : array();
+	$desc          = $product->get_description();
+	$summary_right = $multi || ! trim( wp_strip_all_tags( $desc ) );
+	if ( $summary_right ) {
+		echo '</div>'; // .fvp-left – gallery only
+		echo '<div class="fvp-right fvp-right--summary">';
+	}
+
 	/* Summary */
 	echo '<div class="fvp-summary">';
 	if ( $current ) {
@@ -136,6 +146,7 @@ function fvp_product_shortcode_render( $atts ) {
 			echo '<span class="fvs-card__tax">excl. VAT</span>';
 		}
 		echo '</div>';
+		echo fvp_offer_banner( $product ); // phpcs:ignore – "Limited-time offer · ends …" while a dated sale runs
 	} else {
 		echo '<div class="fvp-price fvs-card__price--poa">Price on request</div>';
 	}
@@ -154,7 +165,9 @@ function fvp_product_shortcode_render( $atts ) {
 		echo '<div class="fvp-short">' . wp_kses_post( wpautop( $short ) ) . '</div>';
 	}
 
-	if ( $datasheet || $url_link ) {
+	if ( $multi ) {
+		echo fvp_product_links( $multi ); // phpcs:ignore
+	} elseif ( $datasheet || $url_link ) {
 		echo '<div class="fvp-links">';
 		if ( $datasheet ) {
 			echo '<a class="fvs-btn fvp-link fvp-link--primary" href="' . esc_url( $datasheet ) . '" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Datasheet (PDF)</a>';
@@ -166,11 +179,10 @@ function fvp_product_shortcode_render( $atts ) {
 	}
 
 	echo '</div>'; // .fvp-summary
-	echo '</div>'; // .fvp-left
+	echo '</div>'; // .fvp-left (or .fvp-right--summary)
 
 	/* ---------- Right: specifications ---------- */
-	$desc = $product->get_description();
-	if ( $desc ) {
+	if ( ! $summary_right ) {
 		echo '<section class="fvp-right" aria-labelledby="fvp-spec-title">';
 		echo '<h2 id="fvp-spec-title" class="fvp-section-title">Specifications</h2>';
 		$spec = wp_kses_post( wc_format_content( $desc ) );
@@ -200,6 +212,66 @@ function fvp_product_shortcode_render( $atts ) {
 	return ob_get_clean();
 }
 
+
+/* "Product links" – the products of a multi-product promotion (instead of Datasheet / Online information) */
+function fvp_product_links( $products ) {
+	$arrow = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+	$out   = '<section class="fvp-plinks" aria-labelledby="fvp-plinks-title"><h2 id="fvp-plinks-title" class="fvp-plinks__title">Product links</h2><ul class="fvp-plinks__list">';
+	foreach ( $products as $p ) {
+		$sku  = $p->get_sku();
+		$img  = $p->get_image_id() ? wp_get_attachment_image( $p->get_image_id(), 'woocommerce_thumbnail', false, array( 'class' => 'fvp-plink__img', 'loading' => 'lazy', 'alt' => '' ) ) : wc_placeholder_img( 'woocommerce_thumbnail', array( 'class' => 'fvp-plink__img' ) );
+		$out .= '<li><a class="fvp-plink" href="' . esc_url( $p->get_permalink() ) . '">'
+			. '<span class="fvp-plink__media">' . $img . '</span>'
+			. '<span class="fvp-plink__text"><strong>' . esc_html( $sku ? $sku : $p->get_name() ) . '</strong>'
+			. ( $sku ? '<small>' . esc_html( $p->get_name() ) . '</small>' : '' ) . '</span>'
+			. '<span class="fvp-plink__go">' . $arrow . '</span></a></li>';
+	}
+	return $out . '</ul></section>';
+}
+
+/**
+ * Offer banner on the product page, from the product's sale end date
+ * (Product data → General → Sale price → Schedule). Shows the end date,
+ * the saving and a live countdown; disappears by itself when the sale ends.
+ */
+function fvp_offer_banner( $product ) {
+	if ( ! $product->is_on_sale() || ! $product->is_type( 'simple' ) ) return '';
+	$end = $product->get_date_on_sale_to();
+	if ( ! $end || $end->getTimestamp() <= time() ) return '';
+
+	$regular = (float) wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
+	$sale    = (float) wc_get_price_to_display( $product, array( 'price' => $product->get_sale_price() ) );
+	$save    = $regular > $sale ? $regular - $sale : 0;
+	$left    = $end->getTimestamp() - time();
+	$days    = (int) floor( $left / DAY_IN_SECONDS );
+	$fallback = $days >= 1 ? sprintf( _n( '%d day left', '%d days left', $days ), $days ) : 'Ends today';
+
+	ob_start();
+	?>
+	<div class="fvp-offer" data-fvp-offer-end="<?php echo (int) $end->getTimestamp(); ?>">
+		<span class="fvp-offer__tag"><?php echo $save > 0 ? 'Save ' . wp_kses_post( wc_price( $save ) ) : 'Offer price'; ?></span>
+		<span class="fvp-offer__ends">Offer ends <?php echo esc_html( wc_format_datetime( $end, 'j F Y' ) ); ?></span>
+		<span class="fvp-offer__count"><?php echo esc_html( $fallback ); ?></span>
+	</div>
+	<script>
+	(function () {
+		var box = document.currentScript && document.currentScript.previousElementSibling;
+		if (!box || !box.hasAttribute('data-fvp-offer-end')) return;
+		var end = parseInt(box.getAttribute('data-fvp-offer-end'), 10) * 1000, out = box.querySelector('.fvp-offer__count');
+		function pad(n) { return (n < 10 ? '0' : '') + n; }
+		function tick() {
+			var s = Math.max(0, Math.floor((end - Date.now()) / 1000));
+			if (!s) { out.textContent = 'Offer ended'; box.classList.add('is-ended'); return; }
+			var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+			out.textContent = (d ? d + 'd ' : '') + pad(h) + 'h ' + pad(m) + 'm left';
+			setTimeout(tick, 30000);
+		}
+		tick();
+	})();
+	</script>
+	<?php
+	return ob_get_clean();
+}
 
 /**
  * Related products: only from the product's own (deepest) category,
@@ -307,12 +379,29 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
 .fvp-price.fvs-card__price--poa{font-size:17px;margin-bottom:0}
 .fvp-price del{color:var(--fvs-muted);font-weight:400;font-size:17px;margin-right:8px}
 .fvp-price ins{text-decoration:none}
+.fvp-offer{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 20px;font-size:14px;color:var(--fvs-ink)}
+.fvp-offer__tag{padding:4px 9px;border-radius:4px;background:var(--fvs-red);color:#fff;font-size:13px;font-weight:700}
+.fvp-offer__tag .amount{color:inherit}
+.fvp-offer__count{font-weight:700;color:var(--fvs-red);font-variant-numeric:tabular-nums}
+.fvp-offer.is-ended .fvp-offer__tag{background:#999}
 .fvp-actions{max-width:380px}
 .fvp .fvs-btn--cart{height:46px}
 .fvp .fvs-qty{height:46px}
 .fvp-short{margin-top:20px;font-size:15px;line-height:1.7;color:#3F444B}
 .fvp-short p{margin:0 0 12px}
 .fvp-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.fvp-right--summary .fvp-summary{margin-top:0}
+.fvp-plinks{margin-top:26px;padding-top:22px;border-top:1px solid var(--fvs-line)}
+.fvp-plinks__title{margin:0 0 14px;font-size:18px;font-weight:600}
+.fvp-plinks__list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.fvs .fvp-plink{display:flex;align-items:center;gap:14px;height:100%;padding:10px 14px 10px 10px;border:1px solid var(--fvs-line);border-radius:14px;background:#fff;color:var(--fvs-ink);text-decoration:none;transition:border-color .2s,box-shadow .2s}
+.fvs .fvp-plink:hover{border-color:var(--fvs-red);box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.fvp-plink__media{flex:0 0 64px;width:64px;height:64px;border-radius:10px;background:#F6F7F8;overflow:hidden}
+.fvp-plink__media img{display:block;width:100%;height:100%;object-fit:contain}
+.fvp-plink__text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.fvp-plink__text strong{font-size:15px;font-weight:600;line-height:1.3}
+.fvp-plink__text small{font-size:13px;line-height:1.4;color:var(--fvs-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fvp-plink__go{flex:0 0 auto;display:flex;color:var(--fvs-red)}
 .fvs .fvp-link{gap:8px;height:46px;padding:0 22px;border:1px solid var(--fvs-red);background:#fff;color:var(--fvs-red)}
 .fvs .fvp-link:hover{background:var(--fvs-red);color:#fff}
 .fvs .fvp-link--primary{background:var(--fvs-red);color:#fff}

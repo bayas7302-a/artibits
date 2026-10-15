@@ -11,12 +11,44 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *   and an "Event details" box: location, start date, end date, time.
  * - Page: /events/ (and the [fanvil_events] shortcode on any page, options title,
  *   subtitle, limit, past="no"): page title + subtitle, Upcoming / Past tabs,
- *   cards 3 per row on desktop, 2 on tablet, 1 on phones (soonest first).
+ *   cards 3 per row on desktop, 2 on tablet, 1 on phones (soonest first),
+ *   9 cards per page with page numbers (FVE_PER_PAGE; ?when=past&pg=2).
  *   Only the title is required; empty date/time/location are not shown.
+ *   Past events stay visible for one month after their last day, then drop off
+ *   the page automatically (FVE_KEEP_PAST); they are not deleted.
  *   Clicking a card opens a popup with the full description.
  * - An event's own link (/events/name/) opens the events page with its popup.
  * ======================================================================== */
 define( 'FVE_TYPE', 'fanvil_event' );
+define( 'FVE_PER_PAGE', 9 ); // event cards per page
+define( 'FVE_KEEP_PAST', '+1 month' ); // past events stay visible this long after their last day
+
+/* Last day an event is shown on the site (e.g. event on Oct 10 → shown until Nov 10), '' = no date */
+function fve_visible_until( $event_id ) {
+	$last = get_post_meta( $event_id, '_fve_end', true ) ?: get_post_meta( $event_id, '_fve_start', true );
+	return $last ? gmdate( 'Y-m-d', strtotime( $last . ' 12:00:00 ' . FVE_KEEP_PAST ) ) : '';
+}
+
+/* Events page URL that shows a given event (right tab + page) with its popup open */
+function fve_event_url( $event_id ) {
+	$today = wp_date( 'Y-m-d' );
+	$is_past = function ( $id ) use ( $today ) {
+		$last = get_post_meta( $id, '_fve_end', true ) ?: get_post_meta( $id, '_fve_start', true );
+		return $last && $last < $today;
+	};
+	$past  = $is_past( $event_id );
+	$list  = array_values( array_filter( fve_get_events(), function ( $id ) use ( $is_past, $past ) {
+		return $is_past( $id ) === $past;
+	} ) );
+	$pos   = array_search( (int) $event_id, array_map( 'intval', $list ), true );
+	if ( false === $pos ) return get_post_type_archive_link( FVE_TYPE ); // no longer shown
+	$page  = false === $pos ? 1 : (int) floor( $pos / FVE_PER_PAGE ) + 1;
+	$args  = array();
+	if ( $past ) $args['when'] = 'past';
+	if ( $page > 1 ) $args['pg'] = $page;
+	$url = get_post_type_archive_link( FVE_TYPE );
+	return ( $args ? add_query_arg( $args, $url ) : $url ) . '#fve-' . get_post_field( 'post_name', $event_id );
+}
 
 add_action( 'init', function () {
 	register_post_type( FVE_TYPE, array(
@@ -130,7 +162,15 @@ add_filter( 'manage_' . FVE_TYPE . '_posts_columns', function ( $cols ) {
 	return $out;
 } );
 add_action( 'manage_' . FVE_TYPE . '_posts_custom_column', function ( $col, $post_id ) {
-	if ( 'fve_date' === $col ) echo esc_html( fve_date_label( $post_id, true ) );
+	if ( 'fve_date' === $col ) {
+		echo esc_html( fve_date_label( $post_id, true ) );
+		$until = fve_visible_until( $post_id );
+		if ( $until && $until < wp_date( 'Y-m-d' ) ) {
+			echo '<br><span style="color:#8A8A8A">Hidden from the site (over a month ago)</span>';
+		} elseif ( $until && ( get_post_meta( $post_id, '_fve_end', true ) ?: get_post_meta( $post_id, '_fve_start', true ) ) < wp_date( 'Y-m-d' ) ) {
+			echo '<br><span style="color:#8A8A8A">Past – shown until ' . esc_html( date_i18n( wc_date_format(), strtotime( $until . ' 12:00:00' ) ) ) . '</span>';
+		}
+	}
 	if ( 'fve_location' === $col ) echo esc_html( get_post_meta( $post_id, '_fve_location', true ) );
 }, 10, 2 );
 add_action( 'pre_get_posts', function ( $q ) {
@@ -171,6 +211,8 @@ function fve_get_events( $limit = -1, $show_past = true ) {
 		$start = get_post_meta( $id, '_fve_start', true );
 		$last  = get_post_meta( $id, '_fve_end', true ) ?: $start;
 		if ( $last && $last < $today ) {
+			$until = fve_visible_until( $id );
+			if ( $until && $until < $today ) continue; // more than a month ago → no longer shown
 			$past[ $id ] = $start;
 		} else {
 			$up[ $id ] = $start ? $start : '9999-12-31'; // no date yet → last of the upcoming
@@ -194,6 +236,7 @@ function fve_render_events( $atts ) {
 		'subtitle' => 'Meet the Fanvil team at exhibitions, roadshows and partner events.',
 		'limit'    => 0,
 		'past'     => 'yes',
+		'per_page' => FVE_PER_PAGE,
 	), $atts, 'fanvil_events' );
 	$ids   = fve_get_events( (int) $atts['limit'], 'no' !== strtolower( $atts['past'] ) );
 	$today = wp_date( 'Y-m-d' );
@@ -208,6 +251,17 @@ function fve_render_events( $atts ) {
 	$n_up   = count( $ids ) - $n_past;
 	$tabs   = $n_up && $n_past; // tabs only when there is something in both
 
+	// Which list is shown (?when=upcoming|past) and which page of it (?pg=2)
+	$when = isset( $_GET['when'] ) && 'past' === $_GET['when'] && $n_past ? 'past' : ( $n_up ? 'upcoming' : 'past' ); // phpcs:ignore WordPress.Security.NonceVerification
+	$list = array_values( array_filter( $ids, function ( $id ) use ( $past_ids, $when ) {
+		return ( 'past' === $when ) === isset( $past_ids[ $id ] );
+	} ) );
+	$per   = max( 1, (int) $atts['per_page'] );
+	$pages = max( 1, (int) ceil( count( $list ) / $per ) );
+	$page  = min( $pages, max( 1, isset( $_GET['pg'] ) ? (int) $_GET['pg'] : 1 ) ); // phpcs:ignore WordPress.Security.NonceVerification
+	$shown = array_slice( $list, ( $page - 1 ) * $per, $per );
+	$base  = remove_query_arg( array( 'when', 'pg' ) );
+
 	ob_start();
 	fve_print_assets();
 	echo '<div class="fve">';
@@ -220,10 +274,19 @@ function fve_render_events( $atts ) {
 		echo '<p class="fve-head__sub">' . esc_html( $atts['subtitle'] ) . '</p>';
 	}
 	if ( $tabs ) {
-		echo '<div class="fve-tabs" role="tablist" aria-label="Show events">';
-		printf( '<button type="button" role="tab" class="fve-tab is-active" aria-selected="true" data-fve-filter="upcoming">Upcoming <span class="fve-tab__n">%d</span></button>', (int) $n_up );
-		printf( '<button type="button" role="tab" class="fve-tab" aria-selected="false" data-fve-filter="past">Past <span class="fve-tab__n">%d</span></button>', (int) $n_past );
-		echo '</div>';
+		echo '<nav class="fve-tabs" aria-label="Show events">';
+		foreach ( array( 'upcoming' => array( 'Upcoming', $n_up ), 'past' => array( 'Past', $n_past ) ) as $key => $tab ) {
+			$on = $key === $when;
+			printf(
+				'<a class="fve-tab%s" href="%s"%s>%s <span class="fve-tab__n">%d</span></a>',
+				$on ? ' is-active' : '',
+				esc_url( 'upcoming' === $key ? $base : add_query_arg( 'when', 'past', $base ) ),
+				$on ? ' aria-current="page"' : '',
+				esc_html( $tab[0] ),
+				(int) $tab[1]
+			);
+		}
+		echo '</nav>';
 	}
 	echo '</header>';
 
@@ -233,19 +296,17 @@ function fve_render_events( $atts ) {
 	}
 
 	echo '<ul class="fve-grid">';
-	foreach ( $ids as $id ) {
+	foreach ( $shown as $id ) {
 		$title    = get_post_field( 'post_title', $id );
 		$location = get_post_meta( $id, '_fve_location', true );
 		$time     = get_post_meta( $id, '_fve_time', true );
 		$date     = fve_date_label( $id );
-		$is_past  = isset( $past_ids[ $id ] );
 		$slug     = get_post_field( 'post_name', $id );
 		$img      = get_post_thumbnail_id( $id );
 		$content  = get_post_field( 'post_content', $id );
 		?>
-		<li class="fve-item" data-fve-when="<?php echo $is_past ? 'past' : 'upcoming'; ?>"<?php echo ( $tabs && $is_past ) ? ' hidden' : ''; ?>>
+		<li class="fve-item">
 			<button type="button" class="fve-card" data-fve-open="fve-<?php echo esc_attr( $slug ); ?>" aria-haspopup="dialog">
-				<?php if ( $is_past && ! $tabs ) : ?><span class="fve-tag">Past event</span><?php endif; ?>
 				<span class="fve-card__title"><?php echo esc_html( $title ); ?></span>
 				<?php if ( $location ) : ?><span class="fve-card__loc"><?php echo esc_html( $location ); ?></span><?php endif; ?>
 				<?php if ( $date ) : ?><span class="fve-card__date"><?php echo esc_html( $date ); ?></span><?php endif; ?>
@@ -275,6 +336,24 @@ function fve_render_events( $atts ) {
 		<?php
 	}
 	echo '</ul>';
+
+	if ( $pages > 1 ) {
+		$link = function ( $n ) use ( $base, $when ) {
+			$args = array();
+			if ( 'past' === $when ) $args['when'] = 'past';
+			if ( $n > 1 ) $args['pg'] = $n;
+			return $args ? add_query_arg( $args, $base ) : $base;
+		};
+		echo '<nav class="fve-pages" aria-label="Event pages">';
+		if ( $page > 1 ) echo '<a class="fve-pages__arrow" href="' . esc_url( $link( $page - 1 ) ) . '" aria-label="Previous page">&lsaquo;</a>';
+		for ( $n = 1; $n <= $pages; $n++ ) {
+			echo $n === $page
+				? '<span class="fve-pages__num is-current" aria-current="page">' . (int) $n . '</span>'
+				: '<a class="fve-pages__num" href="' . esc_url( $link( $n ) ) . '">' . (int) $n . '</a>';
+		}
+		if ( $page < $pages ) echo '<a class="fve-pages__arrow" href="' . esc_url( $link( $page + 1 ) ) . '" aria-label="Next page">&rsaquo;</a>';
+		echo '</nav>';
+	}
 	?>
 	<dialog class="fve-pop" aria-label="Event details">
 		<button type="button" class="fve-pop__close" aria-label="Close">&times;</button>
@@ -293,7 +372,7 @@ add_filter( 'template_include', function ( $template ) {
 }, 99 );
 add_action( 'template_redirect', function () {
 	if ( is_singular( FVE_TYPE ) ) {
-		wp_safe_redirect( get_post_type_archive_link( FVE_TYPE ) . '#fve-' . get_post_field( 'post_name', get_queried_object_id() ), 301 );
+		wp_safe_redirect( fve_event_url( get_queried_object_id() ), 301 );
 		exit;
 	}
 } );
@@ -325,7 +404,12 @@ function fve_print_assets() {
 .fve .fve-tab:focus-visible{outline:2px solid var(--fve-red);outline-offset:2px}
 .fve-tab__n{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:var(--fve-muted);font-size:12px;font-weight:600}
 .fve-tab.is-active .fve-tab__n{background:#FDECEC;color:var(--fve-red)}
-.fve-item[hidden]{display:none}
+.fve .fve-tab{text-decoration:none}
+.fve-pages{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:36px 0 0}
+.fve .fve-pages a,.fve .fve-pages span{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;padding:0 12px;border:1px solid #E6E8EB;border-radius:999px;background:#fff;color:var(--fve-ink);font-size:14px;font-weight:600;text-decoration:none;transition:border-color .2s,color .2s}
+.fve .fve-pages a:hover{border-color:var(--fve-red);color:var(--fve-red)}
+.fve .fve-pages .is-current{background:var(--fve-red);border-color:var(--fve-red);color:#fff}
+.fve .fve-pages__arrow{font-size:20px;line-height:1}
 .fve .fve-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;margin:0;padding:0;list-style:none}
 .fve-item{margin:0;min-width:0}
 .fve .fve-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;height:100%;margin:0;padding:26px 24px 20px;border:0;border-radius:18px;background:var(--fve-card);color:var(--fve-ink);font:inherit;text-align:center;text-transform:none;letter-spacing:normal;cursor:pointer;box-shadow:none;transition:transform .2s,box-shadow .2s;white-space:normal;overflow:hidden}
@@ -342,7 +426,6 @@ function fve_print_assets() {
 .fve-card__more svg{display:block;transition:transform .2s}
 .fve .fve-card:hover .fve-card__more,.fve .fve-card:focus-visible .fve-card__more{background:#B30F17;color:#fff}
 .fve .fve-card:hover .fve-card__more svg{transform:translateX(3px)}
-.fve-tag{position:static;align-self:center;margin:0 0 6px;padding:3px 10px;border-radius:999px;background:#fff;color:var(--fve-muted);font-size:12px;font-weight:600;line-height:1.4}
 .fve-empty{padding:40px 16px;text-align:center;color:var(--fve-muted)}
 
 /* Popup */
@@ -391,26 +474,9 @@ body.fve-lock{overflow:hidden}
 		dlg.dataset.ready = '1';
 		var inner = dlg.querySelector('.fve-pop__inner'), last = null;
 
-		function showTab(which) {
-			document.querySelectorAll('.fve-tab').forEach(function (t) {
-				var on = t.getAttribute('data-fve-filter') === which;
-				t.classList.toggle('is-active', on);
-				t.setAttribute('aria-selected', on ? 'true' : 'false');
-			});
-			document.querySelectorAll('.fve-item').forEach(function (li) {
-				li.hidden = li.getAttribute('data-fve-when') !== which;
-			});
-		}
-		document.addEventListener('click', function (e) {
-			var tab = e.target.closest('.fve-tab');
-			if (tab) showTab(tab.getAttribute('data-fve-filter'));
-		});
-
 		function open(id, trigger) {
 			var tpl = document.getElementById(id);
 			if (!tpl) return;
-			var li = tpl.closest('.fve-item');
-			if (li && li.hidden && document.querySelector('.fve-tab')) showTab(li.getAttribute('data-fve-when'));
 			inner.innerHTML = '';
 			inner.appendChild(tpl.content.cloneNode(true));
 			last = trigger || null;
