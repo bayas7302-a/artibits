@@ -286,7 +286,10 @@ function soharon_offers_bar( $back_url ) {
 		return '<div class="soh-offers-bar is-guest"><span class="soh-offers-bar__icon">' . $gift . '</span><span class="soh-offers-bar__text">Have a promotional offer?</span>'
 			. '<a class="soh-offers-bar__btn" href="' . esc_url( soharon_offers_login_url( $back_url ) ) . '">Log in to see your offers</a></div>';
 	}
-	$n = count( soharon_offers_for_user() );
+	// Only offers not applied yet – the bar disappears once they are all in the cart
+	$n = count( array_filter( soharon_offers_for_user(), function ( $coupon ) {
+		return ! soharon_offer_applied( $coupon->get_code() );
+	} ) );
 	if ( ! $n ) return '';
 	return '<div class="soh-offers-bar"><span class="soh-offers-bar__icon">' . $gift . '</span><span class="soh-offers-bar__text">'
 		. esc_html( sprintf( 1 === $n ? 'You have %d promotional offer' : 'You have %d promotional offers', $n ) ) . '</span>'
@@ -298,8 +301,24 @@ add_action( 'woocommerce_before_checkout_form', function () {
 	if ( is_wc_endpoint_url( 'order-pay' ) ) return;
 	if ( ! is_user_logged_in() ) return; // checkout: no "Log in to see your offers" bar for guests
 	soharon_offers_print_assets();
-	echo soharon_offers_bar( wc_get_checkout_url() ); // phpcs:ignore
+	echo '<div class="soh-offers-slot">' . soharon_offers_bar( wc_get_checkout_url() ) . '</div>'; // phpcs:ignore
 }, 5 );
+
+/* Checkout: refresh the bar whenever the order summary updates (offer applied / code removed) */
+add_filter( 'woocommerce_update_order_review_fragments', function ( $fragments ) {
+	if ( is_user_logged_in() ) {
+		$fragments['.soh-offers-slot'] = '<div class="soh-offers-slot">' . soharon_offers_bar( wc_get_checkout_url() ) . '</div>';
+	}
+	return $fragments;
+} );
+
+/* Popup content, fresh each time it opens (so "Applied" is always up to date) */
+add_action( 'wp_ajax_soharon_offers_list', function () {
+	check_ajax_referer( 'soharon_offers', 'nonce' );
+	$html = '';
+	foreach ( soharon_offers_for_user() as $coupon ) $html .= soharon_offer_card( $coupon, 'apply' );
+	wp_send_json_success( array( 'html' => $html ) );
+} );
 
 /* Cart + checkout: assets and the popup (end of page) */
 add_action( 'wp_footer', function () {
@@ -468,10 +487,22 @@ CSS;
 	var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
 	var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'soharon_offers' ) ); ?>;
 	function dlg() { return document.getElementById('soh-offers-pop'); }
-	function openPop() {
+	function showPop() {
 		var d = dlg(); if (!d) return;
-		if (typeof d.showModal === 'function') { d.showModal(); } else { d.setAttribute('open', ''); }
+		if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else { d.setAttribute('open', ''); }
 		document.body.classList.add('soh-lock');
+	}
+	/* Load the current state of the offers (applied or not), then open */
+	function openPop(btn) {
+		var d = dlg(); if (!d) return;
+		var list = d.querySelector('.soh-offers-list'), label = btn ? btn.textContent : '';
+		if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+		var body = new FormData(); body.append('action', 'soharon_offers_list'); body.append('nonce', nonce);
+		fetch(ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body })
+			.then(function (r) { return r.json(); })
+			.then(function (res) { if (res && res.success && list) list.innerHTML = res.data.html; })
+			.catch(function () {})
+			.then(function () { if (btn) { btn.disabled = false; btn.textContent = label; } showPop(); });
 	}
 	function closePop() {
 		var d = dlg(); if (!d) return;
@@ -511,7 +542,7 @@ CSS;
 	}
 	document.addEventListener('click', function (e) {
 		var t;
-		if ((t = e.target.closest('[data-soh-offers-open]'))) { e.preventDefault(); openPop(); }
+		if ((t = e.target.closest('[data-soh-offers-open]'))) { e.preventDefault(); openPop(t); }
 		else if ((t = e.target.closest('[data-soh-offers-close]'))) { closePop(); }
 		else if ((t = e.target.closest('[data-soh-apply]'))) { apply(t); }
 		else if ((t = e.target.closest('[data-soh-copy]'))) { copy(t.getAttribute('data-soh-copy'), t); }
