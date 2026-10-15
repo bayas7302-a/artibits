@@ -59,8 +59,9 @@ add_shortcode( 'fanvil_categories', function ( $atts ) {
 
 /* ===========================================================================
  * Home page – [fanvil_products type="top_picks"]  /  [fanvil_products type="special_offers"]
- * top_picks ....... products marked Featured (★ in Products list);
- *                   if none are featured → best sellers, then newest
+ * top_picks ....... products in the home page order (Products → Home page sorting;
+ *                   same as the normal Sorting until an order is saved there).
+ *                   If products are marked Featured (★), those come first.
  * special_offers .. products with a sale price (scheduled sales included)
  * promotions ...... products ticked as Promotion – also [fanvil_promotions]; "View all" → /promotions/
  * Also: type="new" (newest) and type="best_sellers".
@@ -94,13 +95,15 @@ function fvs_products_shortcode_render( $atts ) {
 	);
 	// Promotions section shows only promoted products; every other section hides them
 	$base['tax_query'][] = fvs_promo_clause( $promo ? 'IN' : 'NOT IN' );
+	$cat_query = null;
 	if ( $atts['category'] ) {
-		$base['tax_query'][] = array(
+		$cat_query = array(
 			'taxonomy'         => 'product_cat',
 			'field'            => 'slug',
 			'terms'            => array_map( 'sanitize_title', explode( ',', $atts['category'] ) ),
 			'include_children' => true,
 		);
+		$base['tax_query'][] = $cat_query;
 	}
 
 	$best_sellers = array( 'meta_key' => 'total_sales', 'orderby' => array( 'meta_value_num' => 'DESC', 'date' => 'DESC' ) );
@@ -111,7 +114,7 @@ function fvs_products_shortcode_render( $atts ) {
 	switch ( $promo ? 'promotions' : $type ) {
 		case 'promotions':
 			$default = 'Promotions';
-			$ids     = get_posts( array_merge( $base, array( 'orderby' => array( 'menu_order' => 'ASC', 'date' => 'DESC' ) ) ) );
+			$ids     = fvh_home_product_ids( 'promotions', $limit, $cat_query ); // Products → Home page sorting
 			if ( ! $atts['link'] && function_exists( 'fvs_promo_url' ) ) {
 				$atts['link'] = fvs_promo_url(); // "View all" → /promotions/
 			}
@@ -135,17 +138,11 @@ function fvs_products_shortcode_render( $atts ) {
 			$ids     = get_posts( array_merge( $base, $best_sellers ) );
 			break;
 
-		default: // top_picks
-			$featured = wc_get_featured_product_ids();
-			if ( $featured ) {
-				$ids = get_posts( array_merge( $base, array( 'post__in' => $featured, 'orderby' => 'menu_order title', 'order' => 'ASC' ) ) );
-			}
-			if ( count( $ids ) < $limit ) { // top up with best sellers / newest
-				$more = get_posts( array_merge( $base, $best_sellers, array(
-					'posts_per_page' => $limit - count( $ids ),
-					'post__not_in'   => $ids ? $ids : array( 0 ),
-				) ) );
-				$ids  = array_merge( $ids, $more );
+		default: // top_picks – in the home page order (Products → Home page sorting; default = Sorting)
+			$ids = fvh_home_product_ids( 'products', $limit, $cat_query );
+			if ( count( $ids ) < $limit && wc_get_featured_product_ids() ) { // fewer Featured than needed → top up
+				$more = array_diff( fvh_apply_home_order( fvh_home_pool( 'products', $cat_query ? array( 'tax_query' => array( $cat_query ) ) : array() ), 'products' ), $ids );
+				$ids  = array_merge( $ids, array_slice( array_values( $more ), 0, $limit - count( $ids ) ) );
 			}
 	}
 
