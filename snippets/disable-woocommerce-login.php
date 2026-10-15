@@ -37,7 +37,7 @@ add_filter( 'wp_nav_menu_objects', function ( $items ) {
 	} );
 } );
 
-// Hide account / login buttons in the header (theme and Elementor widgets).
+// Hide account / login buttons in the header and the mobile menu (theme and Elementor widgets).
 add_action( 'wp_head', function () {
 	$id   = function_exists( 'wc_get_page_id' ) ? (int) wc_get_page_id( 'myaccount' ) : 0;
 	$path = $id > 0 ? basename( trim( (string) wp_parse_url( get_permalink( $id ), PHP_URL_PATH ), '/' ) ) : 'my-account';
@@ -45,6 +45,7 @@ add_action( 'wp_head', function () {
 	echo '<style id="no-account-buttons">'
 		. 'header ' . $a . ',.main-header ' . $a . ',.elementor-location-header ' . $a . ','
 		. 'header a[href*="wp-login.php"],.main-header a[href*="wp-login.php"],'
+		. '.fsh-account,.fsh-drawer ' . $a . ',.fsh-drawer__links ' . $a . ',[class*="fsh-"] ' . $a . ','
 		. '.elementor-widget-woocommerce-my-account,.ld-module-login,.lqd-module-login'
 		. '{display:none!important}</style>' . "\n";
 }, 99 );
