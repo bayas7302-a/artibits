@@ -1,0 +1,185 @@
+{
+ "id": 8,
+ "slug": "contact-form-1",
+ "title": "Contact form 1",
+ "locale": "en_US",
+ "properties": {
+  "form": {
+   "content": "[text* your-name autocomplete:name placeholder \"Your Name\"]\n\n\n    [email* your-email autocomplete:email placeholder \"Your Email\"] \n\n\n    [text* your-subject placeholder \"Your Subject\"] \n\n\n    [textarea your-message x3 placeholder \"Your Message\"] \n\n[submit \"Submit\"]",
+   "fields": [
+    {
+     "type": "text*",
+     "basetype": "text",
+     "name": "your-name",
+     "options": [
+      "autocomplete:name",
+      "placeholder"
+     ],
+     "raw_values": [
+      "Your Name"
+     ],
+     "labels": [
+      "Your Name"
+     ],
+     "values": [
+      "Your Name"
+     ],
+     "pipes": [
+      [
+       "Your Name",
+       "Your Name"
+      ]
+     ],
+     "content": ""
+    },
+    {
+     "type": "email*",
+     "basetype": "email",
+     "name": "your-email",
+     "options": [
+      "autocomplete:email",
+      "placeholder"
+     ],
+     "raw_values": [
+      "Your Email"
+     ],
+     "labels": [
+      "Your Email"
+     ],
+     "values": [
+      "Your Email"
+     ],
+     "pipes": [
+      [
+       "Your Email",
+       "Your Email"
+      ]
+     ],
+     "content": ""
+    },
+    {
+     "type": "text*",
+     "basetype": "text",
+     "name": "your-subject",
+     "options": [
+      "placeholder"
+     ],
+     "raw_values": [
+      "Your Subject"
+     ],
+     "labels": [
+      "Your Subject"
+     ],
+     "values": [
+      "Your Subject"
+     ],
+     "pipes": [
+      [
+       "Your Subject",
+       "Your Subject"
+      ]
+     ],
+     "content": ""
+    },
+    {
+     "type": "textarea",
+     "basetype": "textarea",
+     "name": "your-message",
+     "options": [
+      "x3",
+      "placeholder"
+     ],
+     "raw_values": [
+      "Your Message"
+     ],
+     "labels": [
+      "Your Message"
+     ],
+     "values": [
+      "Your Message"
+     ],
+     "pipes": [
+      [
+       "Your Message",
+       "Your Message"
+      ]
+     ],
+     "content": ""
+    },
+    {
+     "type": "submit",
+     "basetype": "submit",
+     "name": "",
+     "options": [],
+     "raw_values": [
+      "Submit"
+     ],
+     "labels": [
+      "Submit"
+     ],
+     "values": [
+      "Submit"
+     ],
+     "pipes": [
+      [
+       "Submit",
+       "Submit"
+      ]
+     ],
+     "content": ""
+    }
+   ]
+  },
+  "mail": {
+   "active": true,
+   "subject": "[_site_title] \"[your-subject]\"",
+   "sender": "[_site_title] <admin@artibits.com>",
+   "recipient": "contact@artibits.com",
+   "body": "From: [your-name] [your-email]\nSubject: [your-subject]\n\nMessage Body:\n[your-message]\n\n-- \nThis is a notification that a contact form was submitted on your website ([_site_title] [_site_url]).",
+   "additional_headers": "Reply-To: [your-email]\ncc: info@artibits.com",
+   "attachments": "",
+   "use_html": false,
+   "exclude_blank": false
+  },
+  "mail_2": {
+   "active": false,
+   "subject": "[_site_title] \"[your-subject]\"",
+   "sender": "[_site_title] <admin@artibits.com>",
+   "recipient": "info@artibits.com",
+   "body": "Message Body:\n[your-message]\n\n-- \nThis email is a receipt for your contact form submission on our website ([_site_title] [_site_url]) in which your email address was used. If that was not you, please ignore this message.",
+   "additional_headers": "Reply-To: [_site_admin_email]",
+   "attachments": "",
+   "use_html": false,
+   "exclude_blank": false
+  },
+  "messages": {
+   "mail_sent_ok": "Thank you for your message. It has been sent.",
+   "mail_sent_ng": "There was an error trying to send your message. Please try again later.",
+   "validation_error": "One or more fields have an error. Please check and try again.",
+   "spam": "There was an error trying to send your message. Please try again later.",
+   "accept_terms": "You must accept the terms and conditions before sending your message.",
+   "invalid_required": "Please fill out this field.",
+   "invalid_too_long": "This field has a too long input.",
+   "invalid_too_short": "This field has a too short input.",
+   "upload_failed": "There was an unknown error uploading the file.",
+   "upload_file_type_invalid": "You are not allowed to upload files of this type.",
+   "upload_file_too_large": "The uploaded file is too large.",
+   "upload_failed_php_error": "There was an error uploading the file.",
+   "invalid_date": "Please enter a date in YYYY-MM-DD format.",
+   "date_too_early": "This field has a too early date.",
+   "date_too_late": "This field has a too late date.",
+   "invalid_number": "Please enter a number.",
+   "number_too_small": "This field has a too small number.",
+   "number_too_large": "This field has a too large number.",
+   "quiz_answer_not_correct": "The answer to the quiz is incorrect.",
+   "invalid_email": "Please enter an email address.",
+   "invalid_url": "Please enter a URL.",
+   "invalid_tel": "Please enter a telephone number.",
+   "captcha_not_match": "Your entered code is incorrect."
+  },
+  "additional_settings": {
+   "content": "",
+   "settings": []
+  }
+ }
+}
