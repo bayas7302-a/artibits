@@ -640,10 +640,10 @@ function fvs_render_archive( $show_title ) {
 		echo '</div></nav>';
 	}
 
-	/* Sub-categories */
+	/* Sub-categories – only when there is a real choice (2 or more) */
 	if ( $top ) {
 		$subs = fvs_sub_categories( $top );
-		if ( $subs ) {
+		if ( count( $subs ) > 1 ) {
 			$all_active = $current->term_id === $top->term_id;
 			echo '<div class="fvs-subcats" role="list">';
 			printf(
@@ -665,12 +665,10 @@ function fvs_render_archive( $show_title ) {
 		}
 	}
 
-	/* Heading: category, tag or search term */
+	/* Heading: tag or search term (category pages have none – the tabs already show the category) */
 	$title = '';
 	$empty = 'There are no products in this category yet.';
-	if ( $current ) {
-		$title = $current->name;
-	} elseif ( is_product_tag() ) {
+	if ( is_product_tag() ) {
 		$title = single_term_title( '', false );
 		$empty = 'There are no products with this tag yet.';
 	} elseif ( is_search() ) {
