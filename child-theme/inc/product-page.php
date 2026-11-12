@@ -180,18 +180,23 @@ function fvp_product_shortcode_render( $atts ) {
 
 	echo '</div>'; // .fvp-top
 
-	/* ---------- Related products ---------- */
-	$related = fvp_related_ids( $product, $current, $top, 4 );
-	if ( $related ) {
-		echo '<section class="fvp-related" aria-labelledby="fvp-related-title">';
-		echo '<h2 id="fvp-related-title" class="fvp-section-title">Related products</h2><ul class="fvs-grid">';
-		foreach ( $related as $rid ) {
-			$rp = wc_get_product( $rid );
-			if ( $rp && $rp->is_visible() ) {
-				fvs_render_card( $rp );
-			}
+	/* ---------- Complete Your Solution (Product data → Linked Products) ---------- */
+	$solution = fvp_solution_products( $product );
+	if ( $solution ) {
+		if ( function_exists( 'fvh_print_home_css' ) ) fvh_print_home_css(); // slider styles
+		echo '<section class="fvp-related fvp-solution" aria-labelledby="fvp-solution-title">';
+		echo '<h2 id="fvp-solution-title" class="fvp-section-title">Complete Your Solution</h2>';
+		echo '<div class="fvs-slider fvs-slider--products" data-fvs-slider><ul class="fvs-slider__track">';
+		foreach ( $solution as $sp ) {
+			fvs_render_card( $sp );
 		}
-		echo '</ul></section>';
+		echo '</ul>';
+		// arrows + progress: shown only when there are more cards than fit (desktop: more than 4)
+		echo '<div class="fvs-slider__controls">';
+		echo '<button type="button" class="fvs-slider__btn fvs-slider__prev" aria-label="Previous products"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+		echo '<div class="fvs-slider__progress" aria-hidden="true"><span></span></div>';
+		echo '<button type="button" class="fvs-slider__btn fvs-slider__next" aria-label="Next products"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+		echo '</div></div></section>';
 	}
 
 	echo '</div>';
@@ -259,41 +264,48 @@ function fvp_offer_banner( $product ) {
 	return ob_get_clean();
 }
 
-/**
- * Related products: only from the product's own (deepest) category,
- * e.g. SIP Phones → Android-Phone shows only Android-Phone products.
- * No mixing with other categories; if there are none, the section is hidden.
- */
-function fvp_related_ids( $product, $current, $top, $limit = 4 ) {
-	if ( ! $current ) {
-		return array();
-	}
-	return array_map( 'intval', get_posts( array(
-		'post_type'      => 'product',
-		'post_status'    => 'publish',
-		'posts_per_page' => $limit,
-		'fields'         => 'ids',
-		'post__not_in'   => array( $product->get_id() ),
-		'orderby'        => 'rand',
-		'no_found_rows'  => true,
-		'tax_query'      => array(
-			array(
-				'taxonomy'         => 'product_cat',
-				'field'            => 'term_id',
-				'terms'            => $current->term_id,
-				'include_children' => false,
-			),
-			array(
-				'taxonomy' => 'product_visibility',
-				'field'    => 'name',
-				'terms'    => array( 'exclude-from-catalog' ),
-				'operator' => 'NOT IN',
-			),
-			// promoted product → other promotions; normal product → no promotions
-			fvs_promo_clause( has_term( FVS_PROMO_TERM, FVS_PROMO_TAX, $product->get_id() ) ? 'IN' : 'NOT IN' ),
-		),
-	) ) );
+/* Complete Your Solution: products chosen in Product data → Linked Products
+   (in the order chosen; unpublished / hidden products are skipped) */
+function fvp_solution_ids( $product_id ) {
+	$raw = get_post_meta( $product_id, '_fvs_solution_ids', true );
+	$ids = is_array( $raw ) ? $raw : preg_split( '/[\s,]+/', (string) $raw );
+	return array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
 }
+function fvp_solution_products( $product ) {
+	$out = array();
+	foreach ( fvp_solution_ids( $product->get_id() ) as $id ) {
+		if ( $id === $product->get_id() ) continue;
+		$p = wc_get_product( $id );
+		if ( $p && 'publish' === $p->get_status() && $p->is_visible() ) $out[] = $p;
+	}
+	return $out;
+}
+
+/* Admin: Product data → Linked Products → "Complete your solution" */
+add_action( 'woocommerce_product_options_related', function () {
+	global $post;
+	?>
+	<div class="options_group">
+		<p class="form-field">
+			<label for="fvs_solution_ids">Complete your solution</label>
+			<input type="hidden" name="fvs_solution_present" value="1">
+			<select class="wc-product-search" multiple="multiple" style="width:50%;" id="fvs_solution_ids" name="fvs_solution_ids[]" data-placeholder="Search for a product&hellip;" data-action="woocommerce_json_search_products" data-exclude="<?php echo (int) $post->ID; ?>">
+				<?php foreach ( fvp_solution_ids( $post->ID ) as $sid ) :
+					$sp = wc_get_product( $sid );
+					if ( $sp ) echo '<option value="' . (int) $sid . '" selected="selected">' . esc_html( wp_strip_all_tags( $sp->get_formatted_name() ) ) . '</option>';
+				endforeach; ?>
+			</select>
+			<?php echo wc_help_tip( 'Shown on this product page under "Complete Your Solution", in this order. More than 4 products become a carousel on desktop.' ); // phpcs:ignore ?>
+		</p>
+	</div>
+	<?php
+} );
+add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
+	if ( empty( $_POST['fvs_solution_present'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification -- WooCommerce checks the product form nonce
+	$ids = isset( $_POST['fvs_solution_ids'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['fvs_solution_ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification
+	$ids = array_values( array_unique( array_diff( array_filter( $ids ), array( $product->get_id() ) ) ) );
+	$product->update_meta_data( '_fvs_solution_ids', implode( ',', $ids ) ); // same format as the CSV import
+} );
 
 function fvp_print_css() {
 	static $done = false;
@@ -407,6 +419,7 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
 
 /* Related */
 .fvp-related{margin-top:72px}
+.fvs .fvs-slider--products .fvs-slider__track{margin-left:0;margin-right:0;padding-left:0;padding-right:0;scroll-padding-inline:0}
 
 @media (max-width:1024px){
  .fvp-top{grid-template-columns:minmax(0,1fr);gap:40px}
