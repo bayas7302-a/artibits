@@ -287,6 +287,12 @@ body .elementor .elementor-element.elementor-element-36c3b02,
 body .elementor .elementor-element.elementor-element-5768074{--padding-top:48px;--padding-bottom:48px}
 body .elementor .elementor-element.elementor-element-0064fe2{--gap:20px;--row-gap:20px}
 
+/* Sections with the theme's category / product blocks: never wrap (Elementor's "wrap" on phones
+   made the box keep the old height, so the category grid ran over the next section) */
+body .elementor .e-con:has(.elementor-widget-shortcode .fvs) > .e-con-inner,
+body .elementor .e-con:has(> .elementor-widget-shortcode .fvs){flex-wrap:nowrap}
+body .elementor .elementor-widget-shortcode:has(.fvs){flex-shrink:0;height:auto;max-width:100%}
+
 /* Shop Now */
 .fvh-hero-cta{display:inline-flex;align-items:center;gap:10px;margin-top:26px;padding:15px 32px;border-radius:999px;background:<?php echo esc_attr( $red ); ?>;color:#fff !important;font-family:"Poppins",Sans-serif;font-size:16px;font-weight:600;line-height:1;text-decoration:none !important;box-shadow:0 8px 20px rgba(219,20,29,.25);transition:background .2s,transform .2s}
 .fvh-hero-cta:hover{background:#B30F17;transform:translateY(-1px)}

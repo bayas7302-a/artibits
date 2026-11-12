@@ -252,6 +252,13 @@ function soharon_ajax_refresh_cart() {
  */
 function soharon_custom_cart_css() {
     $css = <<<'CSS'
+/* Same top space as the Shop / Promotions pages (the Elementor section had 120px) */
+body .elementor .e-con:has(.soharon-cart-wrapper){--padding-top:38px;--margin-top:0px;margin-top:0 !important}
+body .elementor .e-con:has(.soharon-cart-wrapper) > .e-con-inner{padding-top:38px}
+body .elementor .elementor-widget:has(> .elementor-widget-container .soharon-cart-wrapper, > .elementor-shortcode .soharon-cart-wrapper, .soharon-cart-wrapper){margin-top:0 !important;margin-block-start:0 !important}
+/* The page's "Your Shopping Cart" heading is hidden in Elementor but still left a 50px gap */
+body .elementor .e-con-inner:has(> .elementor-widget-shortcode .soharon-cart-wrapper) > .elementor-widget-heading{display:none}
+@media (max-width:767px){body .elementor .e-con:has(.soharon-cart-wrapper){--padding-top:34px}body .elementor .e-con:has(.soharon-cart-wrapper) > .e-con-inner{padding-top:34px}}
 .soharon-cart-wrapper{
     --s-red:{RED}; --s-red-dark:{RED_DARK}; --s-red-soft:#FDECEC;
     --s-text:#1A1A1A; --s-muted:#8A8A8A; --s-border:#ECECEC; --s-bg:#F7F7F7;

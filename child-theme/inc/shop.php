@@ -1016,7 +1016,7 @@ function fvs_print_assets() {
 .fvs .fvs-promo-title{margin:0 0 28px;font-family:"Poppins",Sans-serif;font-size:40px;font-weight:400;line-height:1.15;color:#000;letter-spacing:normal;text-transform:none}
 .fvs .fvs-promo-title strong{font-weight:700;color:var(--fvs-red)}
 @media (max-width:767px){.fvs .fvs-promo-title{font-size:25px;margin-bottom:18px}}
-@media (max-width:560px){.fvs--promo{padding-top:16px}}
+@media (max-width:560px){.fvs--promo{padding-top:24px}}
 .fvs-badges{position:absolute;top:12px;left:12px;right:12px;z-index:2;display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}
 .fvs-badges .fvs-badge{position:static}
 .fvs-badges .fvs-badge--label{background:var(--fvs-ink);letter-spacing:.02em}

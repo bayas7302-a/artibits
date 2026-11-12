@@ -578,6 +578,13 @@ add_filter( 'wc_stripe_express_checkout_params', function ( $params ) {
 /* Checkout + thank-you layout */
 function soharon_checkout_css() {
     $css = <<<'CSS'
+/* Same top space as the Shop / Promotions pages (the Elementor section had 120px) */
+body .elementor .e-con:has(.soharon-checkout){--padding-top:38px;--margin-top:0px;margin-top:0 !important}
+body .elementor .e-con:has(.soharon-checkout) > .e-con-inner{padding-top:38px}
+body .elementor .elementor-widget:has(> .elementor-widget-container .soharon-checkout, > .elementor-shortcode .soharon-checkout, .soharon-checkout){margin-top:0 !important;margin-block-start:0 !important}
+/* The page's "Your Shopping Cart" heading is hidden in Elementor but still left a 50px gap */
+body .elementor .e-con-inner:has(> .elementor-widget-shortcode .soharon-checkout) > .elementor-widget-heading{display:none}
+@media (max-width:767px){body .elementor .e-con:has(.soharon-checkout){--padding-top:34px}body .elementor .e-con:has(.soharon-checkout) > .e-con-inner{padding-top:34px}}
 /* ---------- Coupon / login toggles above the form ---------- */
 {S} .woocommerce-form-coupon-toggle .woocommerce-info,
 {S} .woocommerce-form-login-toggle .woocommerce-info{ background:#fff; border:1px solid var(--s-border); border-left:4px solid var(--s-red); }
