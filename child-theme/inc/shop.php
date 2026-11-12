@@ -298,6 +298,24 @@ add_filter( 'term_link', function ( $url, $term, $taxonomy ) {
 	return ( FVS_PROMO_TAX === $taxonomy && FVS_PROMO_TERM === $term->slug && get_option( 'permalink_structure' ) ) ? fvs_promo_url() : $url;
 }, 10, 3 );
 
+/* Menu: on a promoted product's page highlight "Promotions", not "Shop" */
+add_filter( 'wp_nav_menu_objects', function ( $items ) {
+	if ( ! function_exists( 'is_product' ) || ! is_product() || ! fvs_is_promo( get_queried_object_id() ) ) return $items;
+	$promo_url = untrailingslashit( fvs_promo_url() );
+	$shop_id   = (int) wc_get_page_id( 'shop' );
+	$active    = array( 'current-menu-item', 'current_page_item', 'current_page_parent', 'current-menu-parent', 'current-menu-ancestor', 'current_page_ancestor' );
+	foreach ( $items as $item ) {
+		$is_promo = FVS_PROMO_TAX === $item->object || untrailingslashit( $item->url ) === $promo_url;
+		$is_shop  = ( 'page' === $item->object && $shop_id === (int) $item->object_id ) || untrailingslashit( $item->url ) === untrailingslashit( (string) get_permalink( $shop_id ) );
+		if ( $is_shop ) {
+			$item->classes = array_values( array_diff( (array) $item->classes, $active ) );
+		} elseif ( $is_promo ) {
+			$item->classes = array_values( array_unique( array_merge( (array) $item->classes, array( 'current-menu-item' ) ) ) );
+		}
+	}
+	return $items;
+}, 20 );
+
 /* Product edit screen: one checkbox */
 function fvs_promo_meta_box( $post ) {
 	$term = fvs_promo_term();
