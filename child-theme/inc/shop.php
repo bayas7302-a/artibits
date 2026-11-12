@@ -835,7 +835,7 @@ function fvs_stock_html( $product, $card = false ) {
 	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
 	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) ) {
 		// Out of stock: small "Typically available within 2 weeks" and, on cards, a "Check Availability" link
-		$note = fva_shows_lead( $product ) ? '<span>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
+		$note = fva_shows_lead( $product ) ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
 		$link = $card ? fva_button( $product, 'fva-link', true ) : '';
 		if ( $note || $link ) $html .= '<p class="fvs-stock-note">' . $note . $link . '</p>';
 	}
@@ -971,6 +971,7 @@ function fvs_print_assets() {
  .fvs-card .fvs-card__price,.fvs-card .fvs-card__price--poa{margin-bottom:10px}
  .fvs-card .fvs-status{gap:5px 8px;margin-top:10px}
  .fvs .fvs-card .fvs-stock{gap:6px;font-size:13px}
+ .fvs .fvs-card .fvs-status{--fvs-sgap:6px}
  .fvs .fvs-card .fvs-ship{padding:2px 8px 2px 6px !important;font-size:12px}
  .fvs .fvs-card .fvs-ship svg{flex-basis:12px;width:12px;height:12px}
  .fvs .fvs-card .fvs-card__viewcart{font-size:13px}
@@ -1071,8 +1072,14 @@ function fvs_print_assets() {
 .fvs .fvs-ship span{display:inline;color:#17804A}
 .fvs-stock__dot{width:8px;height:8px;border-radius:50%;background:var(--fvs-green)}
 .fvs-stock--instock .fvs-stock__label{color:var(--fvs-green)}
-.fvs-stock-note{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin:2px 0 0 14px;font-size:12px;line-height:1.4;color:#6B7280}
-.fvs .fvs-stock-note .fva-link,.fvs .fvs-stock-note .fva-link:hover,.fvs .fvs-stock-note .fva-link:focus{height:auto;min-height:0;margin:0;padding:0 !important;border:0 !important;background:none !important;box-shadow:none !important;color:var(--fvs-red) !important;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-transform:none;cursor:pointer}
+.fvs-status{--fvs-sgap:8px}
+.fvs-stock-note{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;margin:0;font-size:12.5px;line-height:1.35;color:#6B7280}
+.fvs-stock-note__lead{display:inline-flex;align-items:center;gap:calc(var(--fvs-sgap) - 2.5px);margin-left:-2.5px}
+.fvs-stock-note__lead svg{flex:0 0 13px;color:#9CA3AF}
+.fvs .fvs-stock-note .fva-link,.fvs .fvs-stock-note .fva-link:hover,.fvs .fvs-stock-note .fva-link:focus{display:inline-flex;align-items:center;gap:4px;height:auto;min-height:0;margin:0;padding:0 0 0 calc(8px + var(--fvs-sgap)) !important;border:0 !important;background:none !important;box-shadow:none !important;color:var(--fvs-red) !important;font:inherit;font-weight:600;letter-spacing:.01em;text-decoration:none;text-transform:none;cursor:pointer}
+.fvs .fvs-stock-note .fva-link::after{content:"";width:12px;height:12px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;transition:transform .2s}
+.fvs .fvs-stock-note .fva-link:hover{text-decoration:underline;text-underline-offset:3px}
+.fvs .fvs-stock-note .fva-link:hover::after{transform:translateX(2px)}
 .fvs .fva-btn{width:100%;height:42px;border:0;background:var(--fvs-red);color:#fff}
 .fvs .fva-btn:hover,.fvs .fva-btn:focus-visible{background:var(--fvs-red-dark);color:#fff}
 .fvs .fva-btn--page{width:auto;min-width:260px;height:48px;padding:0 32px;font-size:15px}
