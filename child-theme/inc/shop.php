@@ -177,9 +177,6 @@ function fvs_subtitle( $product ) {
  * ======================================================================== */
 define( 'FVS_PROMO_TAX', 'product_promotion' );
 define( 'FVS_PROMO_TERM', 'promotion' );
-if ( ! defined( 'FVS_PROMO_HEADLINE' ) ) {
-	define( 'FVS_PROMO_HEADLINE', 'Special Prices. For a Limited Time.' ); // top of the Promotions page
-}
 
 /* Promotional labels a promotion can show on its card */
 function fvs_promo_labels() {
@@ -545,66 +542,10 @@ function fvs_promo_categories( $parent, $in ) {
 	} ) );
 }
 
-/* Promotions page -------------------------------------------------------- */
+/* Promotions page: just the product cards (no categories, sub-categories or heading) */
 function fvs_render_promotion_archive( $show_title ) {
-	$base    = fvs_promo_url();
-	$current = fvs_promo_current_cat();
-	$top     = $current ? fvs_top_ancestor( $current ) : null;
-	$in      = fvs_promo_category_ids();
-
 	echo '<div class="fvs fvs--promo">';
-
-	/* Main categories: "All" + categories that have promoted products */
-	$cats = fvs_promo_categories( 0, $in );
-	echo '<nav class="fvs-maincats" aria-label="Promotion categories"><div class="fvs-maincats__track">';
-	printf(
-		'<a href="%s" class="fvs-maincat%s"%s>All</a>',
-		esc_url( $base ),
-		$top ? '' : ' is-active',
-		$top ? '' : ' aria-current="page"'
-	);
-	foreach ( $cats as $cat ) {
-		$active = $top && $top->term_id === $cat->term_id;
-		printf(
-			'<a href="%s" class="fvs-maincat%s"%s>%s</a>',
-			esc_url( add_query_arg( 'pcat', $cat->slug, $base ) ),
-			$active ? ' is-active' : '',
-			$active ? ' aria-current="page"' : '',
-			esc_html( $cat->name )
-		);
-	}
-	echo '</div></nav>';
-
-	/* Sub-categories of the selected main category (only those with promoted products) */
-	if ( $top ) {
-		$subs = fvs_promo_categories( $top->term_id, $in );
-		if ( $subs ) {
-			echo '<div class="fvs-subcats" role="list">';
-			printf(
-				'<a role="listitem" href="%s" class="fvs-subcat%s">All</a>',
-				esc_url( add_query_arg( 'pcat', $top->slug, $base ) ),
-				$current->term_id === $top->term_id ? ' is-active' : ''
-			);
-			foreach ( $subs as $sub ) {
-				$active = $current->term_id === $sub->term_id;
-				printf(
-					'<a role="listitem" href="%s" class="fvs-subcat%s"%s>%s</a>',
-					esc_url( add_query_arg( 'pcat', $sub->slug, $base ) ),
-					$active ? ' is-active' : '',
-					$active ? ' aria-current="page"' : '',
-					esc_html( $sub->name )
-				);
-			}
-			echo '</div>';
-		}
-	}
-
-	fvs_render_results(
-		$show_title ? FVS_PROMO_HEADLINE : '', // marketing headline instead of repeating "Promotions"
-		$current ? 'There are no promotions in this category right now.' : 'There are no promotions right now. Please check back soon.',
-		'Browse all products'
-	);
-
+	fvs_render_results( '', 'There are no promotions right now. Please check back soon.', 'Browse all products', false );
 	echo '</div>';
 }
 
@@ -742,13 +683,13 @@ function fvs_render_archive( $show_title ) {
 }
 
 /* Heading + result count + product grid + pagination (category and promotions pages) */
-function fvs_render_results( $title, $empty_text, $empty_button ) {
+function fvs_render_results( $title, $empty_text, $empty_button, $show_head = true ) {
 	global $wp_query;
 
 	$total    = (int) $wp_query->found_posts;
 	$per_page = (int) $wp_query->get( 'posts_per_page' );
 	$paged    = max( 1, (int) get_query_var( 'paged' ) );
-	if ( $total ) {
+	if ( $total && $show_head ) {
 		$from = ( $paged - 1 ) * $per_page + 1;
 		$to   = min( $total, $paged * $per_page );
 		echo '<div class="fvs-head">';
@@ -1059,6 +1000,8 @@ function fvs_print_assets() {
 
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
+.fvs--promo{padding-top:28px}
+@media (max-width:560px){.fvs--promo{padding-top:16px}}
 .fvs-badges{position:absolute;top:12px;left:12px;right:12px;z-index:2;display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}
 .fvs-badges .fvs-badge{position:static}
 .fvs-badges .fvs-badge--label{background:var(--fvs-ink);letter-spacing:.02em}
