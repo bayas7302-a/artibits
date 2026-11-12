@@ -991,7 +991,7 @@ function fvs_print_assets() {
  .fvs-card .fvs-media__bars{bottom:6px;gap:0}
  .fvs-card .fvs-media__bar span{width:6px;height:6px}
  .fvs-card .fvs-badge{top:8px;left:8px;padding:2px 8px;font-size:12px}
- .fvs-card .fvs-badges{top:8px;left:8px;gap:4px}
+ .fvs-card .fvs-badges{top:8px;left:8px;right:8px;gap:4px}
  .fvs-card .fvs-card__body{padding:12px 12px 14px}
  .fvs-card .fvs-card__title{font-size:15px}
  .fvs-card .fvs-card__subtitle{margin:2px 0 10px;font-size:13px}
@@ -1041,7 +1041,7 @@ function fvs_print_assets() {
 
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
-.fvs-badges{position:absolute;top:12px;left:12px;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:calc(100% - 24px)}
+.fvs-badges{position:absolute;top:12px;left:12px;right:12px;z-index:2;display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}
 .fvs-badges .fvs-badge{position:static}
 .fvs-badges .fvs-badge--label{background:var(--fvs-ink);letter-spacing:.02em}
 .fvs-card__offer{display:block;margin-top:6px;font-size:13px;font-weight:400;color:var(--fvs-red)}
