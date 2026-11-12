@@ -795,6 +795,8 @@ function fvs_render_card( $product ) {
 
 	if ( $has_price && $product->is_type( 'simple' ) && $product->is_purchasable() && $product->is_in_stock() ) {
 		fvs_render_buy_form( $product, $title, '', true );
+	} elseif ( function_exists( 'fva_button' ) ) {
+		echo fva_button( $product, 'fva-btn--card' ); // phpcs:ignore – out of stock: "Check Availability"
 	}
 	echo '<a class="fvs-btn fvs-btn--ghost fvs-card__details" href="' . esc_url( $link ) . '">View details</a>';
 	echo fvs_stock_html( $product ); // phpcs:ignore
@@ -831,6 +833,10 @@ function fvs_stock_html( $product ) {
 		'onbackorder' => 'Available on backorder',
 		'outofstock'  => 'Out of stock',
 	);
+	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) && fva_shows_lead( $product ) ) {
+		$status = 'lead'; // out of stock → "Typically available within 2 weeks"
+		$labels['lead'] = FVA_LEAD_TEXT;
+	}
 	$html  = '<div class="fvs-status">';
 	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
 	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status ) {
@@ -1065,6 +1071,11 @@ function fvs_print_assets() {
 .fvs .fvs-ship span{display:inline;color:#17804A}
 .fvs-stock__dot{width:8px;height:8px;border-radius:50%;background:var(--fvs-green)}
 .fvs-stock--instock .fvs-stock__label{color:var(--fvs-green)}
+.fvs-stock--lead .fvs-stock__dot{background:#D97706}
+.fvs-stock--lead .fvs-stock__label{color:#B45309}
+.fvs .fva-btn{width:100%;height:42px;border:0;background:var(--fvs-red);color:#fff}
+.fvs .fva-btn:hover,.fvs .fva-btn:focus-visible{background:var(--fvs-red-dark);color:#fff}
+.fvs .fva-btn--page{width:auto;min-width:260px;height:48px;padding:0 32px;font-size:15px}
 .fvs-stock--outofstock .fvs-stock__dot{background:var(--fvs-red)}
 .fvs-stock--onbackorder .fvs-stock__dot{background:#D97706}
 .fvs .added_to_cart{display:none !important}

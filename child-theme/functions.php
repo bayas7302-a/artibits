@@ -46,6 +46,7 @@ foreach ( array(
 	'home.php',
 	'home-order.php',
 	'events.php',
+	'availability.php',
 ) as $soharon_file ) {
 	require_once get_stylesheet_directory() . '/inc/' . $soharon_file;
 }

@@ -139,6 +139,8 @@ function fvp_product_shortcode_render( $atts ) {
 		fvs_render_buy_form( $product, $title, 'fvp-actions' );
 	} elseif ( $product->is_type( 'variable' ) || $product->is_type( 'grouped' ) ) {
 		woocommerce_template_single_add_to_cart(); // standard form for other product types
+	} elseif ( function_exists( 'fva_button' ) ) {
+		echo fva_button( $product, 'fva-btn--page' ); // phpcs:ignore – out of stock: "Check Availability"
 	}
 
 	echo fvs_stock_html( $product ); // phpcs:ignore
