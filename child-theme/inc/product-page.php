@@ -372,6 +372,8 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
 .fvp .fvs-qty{height:46px}
 .fvp-short{margin-top:20px;font-size:15px;line-height:1.7;color:#3F444B}
 .fvp-short p{margin:0 0 12px}
+/* Paragraphs: justified (both edges straight) */
+.fvp-short,.fvp-short p,.fvp-spec p{text-align:justify;text-justify:inter-word}
 .fvp-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
 .fvp-right--summary .fvp-summary{margin-top:0}
 .fvp-plinks{margin-top:26px;padding-top:22px;border-top:1px solid var(--fvs-line)}
