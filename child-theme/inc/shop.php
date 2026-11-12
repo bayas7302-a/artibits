@@ -545,6 +545,7 @@ function fvs_promo_categories( $parent, $in ) {
 /* Promotions page: just the product cards (no categories, sub-categories or heading) */
 function fvs_render_promotion_archive( $show_title ) {
 	echo '<div class="fvs fvs--promo">';
+	echo '<h1 class="fvs-promo-title">Special Prices. <strong>For a Limited Time.</strong></h1>';
 	fvs_render_results( '', 'There are no promotions right now. Please check back soon.', 'Browse all products', false );
 	echo '</div>';
 }
@@ -1006,6 +1007,9 @@ function fvs_print_assets() {
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
 .fvs--promo{padding-top:28px}
+.fvs .fvs-promo-title{margin:0 0 28px;font-family:"Poppins",Sans-serif;font-size:40px;font-weight:400;line-height:1.15;color:#000;letter-spacing:normal;text-transform:none}
+.fvs .fvs-promo-title strong{font-weight:700;color:var(--fvs-red)}
+@media (max-width:767px){.fvs .fvs-promo-title{font-size:25px;margin-bottom:18px}}
 @media (max-width:560px){.fvs--promo{padding-top:16px}}
 .fvs-badges{position:absolute;top:12px;left:12px;right:12px;z-index:2;display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}
 .fvs-badges .fvs-badge{position:static}

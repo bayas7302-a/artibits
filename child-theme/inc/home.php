@@ -275,7 +275,12 @@ add_action( 'wp_head', function () {
 	?>
 <style id="fvh-home-layout">
 /* Banner: compact (was 86% of the screen height) */
-body .elementor .elementor-element.elementor-element-b11a935{--min-height:clamp(380px,56vh,500px);--padding-top:40px;--padding-bottom:40px}
+body .elementor .elementor-element.elementor-element-b11a935{--min-height:clamp(320px,42vh,400px);--padding-top:32px;--padding-bottom:32px}
+/* Banner heading on 2 lines: "Powerful Communication" / "Smarter Access" */
+@media (min-width:1025px){
+ body .elementor .elementor-element.elementor-element-11adce5{width:auto;max-width:none;--container-widget-width:auto}
+ body .elementor .elementor-element.elementor-element-11adce5 .elementor-heading-title{font-size:44px;white-space:nowrap}
+}
 /* Sections: the same spacing everywhere */
 body .elementor .elementor-element.elementor-element-0064fe2,
 body .elementor .elementor-element.elementor-element-36c3b02,
@@ -287,10 +292,16 @@ body .elementor .elementor-element.elementor-element-0064fe2{--gap:20px;--row-ga
 .fvh-hero-cta:hover{background:#B30F17;transform:translateY(-1px)}
 
 @media (max-width:1024px){
- body .elementor .elementor-element.elementor-element-b11a935{--min-height:420px}
+ body .elementor .elementor-element.elementor-element-b11a935{--min-height:380px}
  body .elementor .elementor-element.elementor-element-0064fe2,
  body .elementor .elementor-element.elementor-element-36c3b02,
  body .elementor .elementor-element.elementor-element-5768074{--padding-top:40px;--padding-bottom:40px}
+}
+@media (min-width:768px) and (max-width:1024px){
+ body .elementor .elementor-element.elementor-element-11adce5{max-width:56%;--container-widget-width:56%}
+ body .elementor .elementor-element.elementor-element-11adce5 .elementor-heading-title{font-size:36px}
+ body .elementor .elementor-element.elementor-element-983412c{max-width:50%;--container-widget-width:50%}
+ body .elementor .elementor-element.elementor-element-983412c .elementor-heading-title{font-size:14px}
 }
 @media (max-width:767px){
  body .elementor .elementor-element.elementor-element-b11a935{--min-height:470px;--padding-top:28px}
@@ -304,3 +315,22 @@ body .elementor .elementor-element.elementor-element-0064fe2{--gap:20px;--row-ga
 </style>
 	<?php
 }, 99 );
+
+/* Shop Now – backup when Elementor serves a cached banner without the button */
+add_action( 'wp_footer', function () {
+	if ( ! is_front_page() || ! function_exists( 'wc_get_page_permalink' ) ) return;
+	?>
+<script>
+(function () {
+	if (document.querySelector('.fvh-hero-cta')) return;
+	var w = document.querySelector('.elementor-element-<?php echo esc_js( FVH_HERO_TEXT_WIDGET ); ?> .elementor-widget-container') || document.querySelector('.elementor-element-<?php echo esc_js( FVH_HERO_TEXT_WIDGET ); ?>');
+	if (!w) return;
+	var a = document.createElement('a');
+	a.className = 'fvh-hero-cta';
+	a.href = <?php echo wp_json_encode( wc_get_page_permalink( 'shop' ) ); ?>;
+	a.innerHTML = 'Shop Now<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+	w.appendChild(a);
+})();
+</script>
+	<?php
+}, 30 );
