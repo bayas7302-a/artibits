@@ -177,6 +177,24 @@ function fvs_subtitle( $product ) {
  * ======================================================================== */
 define( 'FVS_PROMO_TAX', 'product_promotion' );
 define( 'FVS_PROMO_TERM', 'promotion' );
+if ( ! defined( 'FVS_PROMO_HEADLINE' ) ) {
+	define( 'FVS_PROMO_HEADLINE', 'Special Prices. For a Limited Time.' ); // top of the Promotions page
+}
+
+/* Promotional labels a promotion can show on its card */
+function fvs_promo_labels() {
+	return array(
+		'limited' => 'Limited Offer',
+		'special' => 'Special Price',
+		'bogo'    => 'Buy One, Get One',
+		'bundle'  => 'Bundle Offer',
+	);
+}
+function fvs_promo_label( $product_id ) {
+	$labels = fvs_promo_labels();
+	$key    = get_post_meta( $product_id, '_fvs_promo_label', true );
+	return isset( $labels[ $key ] ) && fvs_is_promo( $product_id ) ? $labels[ $key ] : '';
+}
 
 add_action( 'init', function () {
 	register_taxonomy( FVS_PROMO_TAX, array( 'product' ), array(
@@ -308,6 +326,14 @@ function fvs_promo_meta_box( $post ) {
 	wp_nonce_field( 'fvs_promo_opts', 'fvs_promo_opts_nonce' );
 	?>
 	<div class="fvs-promo-opts" style="margin-top:12px;padding-top:10px;border-top:1px solid #dcdcde<?php echo $on ? '' : ';display:none'; ?>">
+		<label for="fvs_promo_label" style="display:block;margin:4px 0;font-weight:600">Promotional label</label>
+		<select id="fvs_promo_label" name="fvs_promo_label" style="width:100%">
+			<option value="">None</option>
+			<?php foreach ( fvs_promo_labels() as $key => $text ) : ?>
+				<option value="<?php echo esc_attr( $key ); ?>"<?php selected( get_post_meta( $post->ID, '_fvs_promo_label', true ), $key ); ?>><?php echo esc_html( $text ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<p class="description" style="margin:4px 0 10px">Shown on the product card.</p>
 		<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="fvs_promo_badge" value="yes"<?php checked( $badge ); ?>> Enable percentage badge</label>
 		<p class="description" style="margin:0 0 8px">Shows the "−10%" label on the product card.</p>
 		<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="fvs_promo_multi" value="yes" class="fvs-promo-multi"<?php checked( $multi ); ?>> Multi product</label>
@@ -338,6 +364,8 @@ add_action( 'save_post_product', function ( $post_id ) {
 	if ( empty( $_POST['fvs_promo_opts_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['fvs_promo_opts_nonce'] ), 'fvs_promo_opts' ) ) return;
 	if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) return;
 	update_post_meta( $post_id, '_fvs_promo_badge', empty( $_POST['fvs_promo_badge'] ) ? 'no' : 'yes' );
+	$label = isset( $_POST['fvs_promo_label'] ) ? sanitize_key( wp_unslash( $_POST['fvs_promo_label'] ) ) : '';
+	update_post_meta( $post_id, '_fvs_promo_label', isset( fvs_promo_labels()[ $label ] ) ? $label : '' );
 	update_post_meta( $post_id, '_fvs_promo_multi', empty( $_POST['fvs_promo_multi'] ) ? 'no' : 'yes' );
 	$ids = isset( $_POST['fvs_promo_products'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['fvs_promo_products'] ) ) : array();
 	update_post_meta( $post_id, '_fvs_promo_products', array_values( array_unique( array_diff( array_filter( $ids ), array( $post_id ) ) ) ) );
@@ -546,7 +574,7 @@ function fvs_render_promotion_archive( $show_title ) {
 	}
 
 	fvs_render_results(
-		$show_title ? ( $current ? 'Promotions: ' . $current->name : 'Promotions' ) : '',
+		$show_title ? FVS_PROMO_HEADLINE : '', // marketing headline instead of repeating "Promotions"
 		$current ? 'There are no promotions in this category right now.' : 'There are no promotions right now. Please check back soon.',
 		'Browse all products'
 	);
@@ -586,7 +614,7 @@ function fvs_render_category_grid() {
 
 	/* Heading – shop page only (this grid is only shown on the main shop page) */
 	echo '<header class="fvs-cats-head">';
-	echo '<h1 class="fvs-cats-head__title">Our <strong>Categories</strong></h1>';
+	echo '<h1 class="fvs-cats-head__title">Product <strong>Categories</strong></h1>';
 	echo '<p class="fvs-cats-head__text">Find the right Fanvil solution.</p>';
 	echo '</header>';
 
@@ -738,12 +766,19 @@ function fvs_render_card( $product ) {
 	/* Image carousel */
 	echo '<div class="fvs-media" data-fvs-carousel>';
 	$is_promo = fvs_is_promo( $product->get_id() );
+	$label    = $is_promo ? fvs_promo_label( $product->get_id() ) : ''; // "Limited Offer", "Special Price" …
+	$badge    = '';
 	// promotion cards show the % badge only when "Enable percentage badge" is ticked
 	if ( $product->is_on_sale() && ( ! $is_promo || 'yes' === $product->get_meta( '_fvs_promo_badge' ) ) ) {
 		$regular = (float) $product->get_regular_price();
 		$sale    = (float) $product->get_sale_price();
 		$badge   = ( $regular > 0 && $sale > 0 && $sale < $regular ) ? '−' . round( ( 1 - $sale / $regular ) * 100 ) . '%' : 'Sale';
-		echo '<span class="fvs-badge">' . esc_html( $badge ) . '</span>';
+	}
+	if ( $label || $badge ) {
+		echo '<div class="fvs-badges">';
+		if ( $label ) echo '<span class="fvs-badge fvs-badge--label">' . esc_html( $label ) . '</span>';
+		if ( $badge ) echo '<span class="fvs-badge">' . esc_html( $badge ) . '</span>';
+		echo '</div>';
 	}
 	echo '<a class="fvs-media__link" href="' . esc_url( $link ) . '" tabindex="-1" aria-hidden="true"><div class="fvs-media__track">';
 	if ( $img_ids ) {
@@ -947,38 +982,39 @@ function fvs_print_assets() {
  .fvs-card .fvs-media__slide{padding:10px 10px 22px}
  .fvs-card .fvs-media__bars{bottom:6px;gap:0}
  .fvs-card .fvs-media__bar span{width:6px;height:6px}
- .fvs-card .fvs-badge{top:8px;left:8px;padding:2px 8px;font-size:11px}
+ .fvs-card .fvs-badge{top:8px;left:8px;padding:2px 8px;font-size:12px}
+ .fvs-card .fvs-badges{top:8px;left:8px;gap:4px}
  .fvs-card .fvs-card__body{padding:12px 12px 14px}
  .fvs-card .fvs-card__title{font-size:15px}
- .fvs-card .fvs-card__subtitle{margin:2px 0 10px;font-size:12px}
+ .fvs-card .fvs-card__subtitle{margin:2px 0 10px;font-size:13px}
  .fvs-card .fvs-card__price{font-size:15px}
- .fvs-card .fvs-card__price del{font-size:12px}
- .fvs-card .fvs-card__price--poa{font-size:13px}
- .fvs-card .fvs-card__tax{font-size:11px}
+ .fvs-card .fvs-card__price del{font-size:13px}
+ .fvs-card .fvs-card__price--poa{font-size:14px}
+ .fvs-card .fvs-card__tax{font-size:12px}
  .fvs-card .fvs-card__actions{gap:6px}
  .fvs-card .fvs-qty{height:38px}
  .fvs .fvs-card .fvs-qty__btn{flex-basis:28px;width:28px}
  .fvs .fvs-card .fvs-btn--cart,.fvs .fvs-card .fvs-btn--cart:focus{flex-basis:38px;width:38px;height:38px}
- .fvs .fvs-card .fvs-btn--ghost{height:38px;padding:0 10px;font-size:13px}
+ .fvs .fvs-card .fvs-btn--ghost{height:38px;padding:0 10px;font-size:14px}
  .fvs .fvs-card .fvs-card__details{margin-top:8px}
  .fvs-card .fvs-card__price,.fvs-card .fvs-card__price--poa{margin-bottom:10px}
  .fvs-card .fvs-status{gap:5px 8px;margin-top:10px}
- .fvs .fvs-card .fvs-stock{gap:6px;font-size:11.5px}
- .fvs .fvs-card .fvs-ship{padding:2px 8px 2px 6px !important;font-size:10.5px}
+ .fvs .fvs-card .fvs-stock{gap:6px;font-size:13px}
+ .fvs .fvs-card .fvs-ship{padding:2px 8px 2px 6px !important;font-size:12px}
  .fvs .fvs-card .fvs-ship svg{flex-basis:12px;width:12px;height:12px}
- .fvs .fvs-card .fvs-card__viewcart{font-size:12px}
+ .fvs .fvs-card .fvs-card__viewcart{font-size:13px}
 
  .fvs--cats{padding:28px 0 44px}
  .fvs .fvs-catcard{padding:8px 8px 10px;border-radius:12px}
  .fvs .fvs-catcard:hover{transform:none}
  .fvs-catcard__media{padding:4px 6px 10px}
- .fvs-catcard__label{min-height:34px;padding:6px 10px;font-size:12px}
+ .fvs-catcard__label{min-height:40px;padding:8px 10px;font-size:14px}
 
  .fvs-maincat{padding:12px 0;font-size:14px}
  .fvs-subcats{gap:8px;margin-bottom:20px}
- .fvs .fvs-subcat{padding:6px 14px;font-size:13px}
+ .fvs .fvs-subcat{padding:6px 14px;font-size:14px}
  .fvs-head{margin-bottom:14px}
- .fvs-head__count{font-size:13px}
+ .fvs-head__count{font-size:14px}
  .fvs-pagination{margin-top:28px}
  .fvs .fvs-pagination li > .page-numbers{min-width:38px;height:38px;font-size:13px}
 }
@@ -991,12 +1027,15 @@ function fvs_print_assets() {
 .fvs-catcard__media{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;padding:8px 12px 14px}
 .fvs-catcard__img{width:100%;height:100%;object-fit:contain;transition:transform .35s ease}
 .fvs-catcard:hover .fvs-catcard__img{transform:scale(1.04)}
-.fvs-catcard__label{margin-top:auto;display:flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:14px;font-weight:600;line-height:1.25;text-align:center;transition:background .2s}
+.fvs-catcard__label{margin-top:auto;display:flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:16px;font-weight:600;line-height:1.25;text-align:center;transition:background .2s}
 .fvs-catcard:hover .fvs-catcard__label{background:var(--fvs-red-dark)}
 @media (prefers-reduced-motion:reduce){.fvs .fvs-catcard,.fvs-catcard__img{transition:none}.fvs .fvs-catcard:hover{transform:none}.fvs-catcard:hover .fvs-catcard__img{transform:none}}
 
 /* Product card */
 .fvs-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--fvs-line);border-radius:14px;overflow:hidden;transition:border-color .2s}
+.fvs-badges{position:absolute;top:12px;left:12px;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:6px;max-width:calc(100% - 24px)}
+.fvs-badges .fvs-badge{position:static}
+.fvs-badges .fvs-badge--label{background:var(--fvs-ink);letter-spacing:.02em}
 .fvs-card__offer{display:block;margin-top:6px;font-size:13px;font-weight:400;color:var(--fvs-red)}
 .fvs-card__offer strong{font-weight:600}
 .fvs-badge{position:absolute;top:12px;left:12px;z-index:2;padding:4px 10px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:12px;font-weight:600;line-height:1.3}
