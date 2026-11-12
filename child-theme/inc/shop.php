@@ -1002,6 +1002,12 @@ function fvs_print_assets() {
 .fvs-catcard:hover .fvs-catcard__img{transform:scale(1.04)}
 .fvs-catcard__label{margin-top:auto;display:flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:16px;font-weight:600;line-height:1.25;text-align:center;transition:background .2s}
 .fvs-catcard:hover .fvs-catcard__label{background:var(--fvs-red-dark)}
+/* Category names on one line: the text scales a little with the card width (same size on every card) */
+.fvs .fvs-catcard{container-type:inline-size}
+@supports (font-size:1cqi){
+ @media (min-width:641px){.fvs-catcard__label{padding:10px 12px;font-size:clamp(13px,5.3cqi,16px)}}
+ @media (min-width:1101px){.fvs-catcard__label{white-space:nowrap}}
+}
 @media (prefers-reduced-motion:reduce){.fvs .fvs-catcard,.fvs-catcard__img{transition:none}.fvs .fvs-catcard:hover{transform:none}.fvs-catcard:hover .fvs-catcard__img{transform:none}}
 
 /* Product card */
