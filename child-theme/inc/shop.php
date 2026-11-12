@@ -981,7 +981,7 @@ function fvs_print_assets() {
  .fvs .fvs-catcard{padding:8px 8px 10px;border-radius:12px}
  .fvs .fvs-catcard:hover{transform:none}
  .fvs-catcard__media{padding:4px 6px 10px}
- .fvs-catcard__label{min-height:40px;padding:8px 10px;font-size:14px}
+ .fvs-catcard__label{min-height:36px;padding:7px 8px;font-size:12.5px;line-height:1.3}
 
  .fvs-maincat{padding:12px 0;font-size:14px}
  .fvs-subcats{gap:8px;margin-bottom:20px}

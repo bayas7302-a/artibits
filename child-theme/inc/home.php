@@ -310,7 +310,9 @@ body .elementor .elementor-widget-shortcode:has(.fvs){flex-shrink:0;height:auto;
  body .elementor .elementor-element.elementor-element-983412c .elementor-heading-title{font-size:14px}
 }
 @media (max-width:767px){
- body .elementor .elementor-element.elementor-element-b11a935{--min-height:470px;--padding-top:28px}
+ body .elementor .elementor-element.elementor-element-b11a935{--min-height:470px;--padding-top:28px;--padding-left:20px;--padding-right:20px;--width:100%;width:100%;max-width:none;margin-left:0;margin-right:0;border-radius:0}
+ /* banner edge to edge: text widgets use the full width */
+ body .elementor .elementor-element.elementor-element-11adce5,body .elementor .elementor-element.elementor-element-983412c{max-width:100%;--container-widget-width:100%}
  body .elementor .elementor-element.elementor-element-b11a935:not(.elementor-motion-effects-element-type-background){background-position:center bottom}
  body .elementor .elementor-element.elementor-element-983412c .elementor-heading-title{font-size:13px;line-height:1.55}
  body .elementor .elementor-element.elementor-element-0064fe2,
