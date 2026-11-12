@@ -51,22 +51,6 @@ function fvp_product_shortcode_render( $atts ) {
 		wc_print_notices();
 	}
 
-	/* Main category tabs */
-	$cats = fvs_top_categories();
-	if ( $cats ) {
-		echo '<nav class="fvs-maincats" aria-label="Product categories"><div class="fvs-maincats__track">';
-		foreach ( $cats as $cat ) {
-			$active = $top && $top->term_id === $cat->term_id;
-			printf(
-				'<a href="%s" class="fvs-maincat%s">%s</a>',
-				esc_url( get_term_link( $cat ) ),
-				$active ? ' is-active' : '',
-				esc_html( $cat->name )
-			);
-		}
-		echo '</div></nav>';
-	}
-
 	echo '<div class="fvp-top">';
 
 	/* ---------- Left: gallery + summary ---------- */
@@ -317,8 +301,7 @@ function fvp_print_css() {
 	$done = true;
 	?>
 <style id="fvp-css">
-.fvp{padding:8px 0 72px}
-.fvp .fvs-maincats{margin-bottom:32px}
+.fvp{padding:32px 0 72px}
 .fvp{max-width:100%;overflow-x:clip}
 .fvp-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:start}
 .fvp-left,.fvp-right,.fvp-summary,.fvp-gallery{min-width:0;max-width:100%}
@@ -429,7 +412,7 @@ html.fvp-lb-open,html.fvp-lb-open body{overflow:hidden}
  .fvp-stage__slide{padding:16px}
  .fvp-links .fvs-btn{flex:1 1 100%}
  .fvp-actions{max-width:none}
- .fvp .fvs-maincats{margin-bottom:20px}
+ .fvp{padding-top:20px}
  .fvp-stage{border-radius:12px}
  .fvp-thumbs{gap:8px}
  .fvs .fvp-thumb,.fvs .fvp-thumb:hover,.fvs .fvp-thumb:focus{flex-basis:58px;width:58px;height:58px}
