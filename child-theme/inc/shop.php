@@ -193,7 +193,10 @@ function fvs_promo_labels() {
 function fvs_promo_label( $product_id ) {
 	$labels = fvs_promo_labels();
 	$key    = get_post_meta( $product_id, '_fvs_promo_label', true );
-	return isset( $labels[ $key ] ) && fvs_is_promo( $product_id ) ? $labels[ $key ] : '';
+	if ( 'custom' === $key ) { // "Custom…" – the text typed in the Promotions box
+		$labels['custom'] = trim( (string) get_post_meta( $product_id, '_fvs_promo_label_text', true ) );
+	}
+	return ! empty( $labels[ $key ] ) && fvs_is_promo( $product_id ) ? $labels[ $key ] : '';
 }
 
 add_action( 'init', function () {
@@ -332,7 +335,9 @@ function fvs_promo_meta_box( $post ) {
 			<?php foreach ( fvs_promo_labels() as $key => $text ) : ?>
 				<option value="<?php echo esc_attr( $key ); ?>"<?php selected( get_post_meta( $post->ID, '_fvs_promo_label', true ), $key ); ?>><?php echo esc_html( $text ); ?></option>
 			<?php endforeach; ?>
+			<option value="custom"<?php selected( get_post_meta( $post->ID, '_fvs_promo_label', true ), 'custom' ); ?>>Custom…</option>
 		</select>
+		<input type="text" name="fvs_promo_label_text" class="fvs-promo-label-text" maxlength="30" placeholder="Type your label, e.g. Ramadan Deal" value="<?php echo esc_attr( get_post_meta( $post->ID, '_fvs_promo_label_text', true ) ); ?>" style="width:100%;margin-top:6px<?php echo 'custom' === get_post_meta( $post->ID, '_fvs_promo_label', true ) ? '' : ';display:none'; ?>">
 		<p class="description" style="margin:4px 0 10px">Shown on the product card.</p>
 		<label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" name="fvs_promo_badge" value="yes"<?php checked( $badge ); ?>> Enable percentage badge</label>
 		<p class="description" style="margin:0 0 8px">Shows the "−10%" label on the product card.</p>
@@ -354,6 +359,7 @@ function fvs_promo_meta_box( $post ) {
 		var box = $('#<?php echo esc_js( FVS_PROMO_TAX ); ?>div, .fvs-promo-opts').first().closest('.postbox');
 		box.on('change', 'input[name^="tax_input"]', function () { box.find('.fvs-promo-opts').toggle(this.checked); });
 		box.on('change', '.fvs-promo-multi', function () { box.find('.fvs-promo-products').toggle(this.checked); });
+		box.on('change', '#fvs_promo_label', function () { box.find('.fvs-promo-label-text').toggle(this.value === 'custom').trigger(this.value === 'custom' ? 'focus' : 'blur'); });
 	});
 	</script>
 	<?php
@@ -365,7 +371,9 @@ add_action( 'save_post_product', function ( $post_id ) {
 	if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) return;
 	update_post_meta( $post_id, '_fvs_promo_badge', empty( $_POST['fvs_promo_badge'] ) ? 'no' : 'yes' );
 	$label = isset( $_POST['fvs_promo_label'] ) ? sanitize_key( wp_unslash( $_POST['fvs_promo_label'] ) ) : '';
-	update_post_meta( $post_id, '_fvs_promo_label', isset( fvs_promo_labels()[ $label ] ) ? $label : '' );
+	update_post_meta( $post_id, '_fvs_promo_label', isset( fvs_promo_labels()[ $label ] ) || 'custom' === $label ? $label : '' );
+	$text = isset( $_POST['fvs_promo_label_text'] ) ? sanitize_text_field( wp_unslash( $_POST['fvs_promo_label_text'] ) ) : '';
+	update_post_meta( $post_id, '_fvs_promo_label_text', function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 30 ) : substr( $text, 0, 30 ) );
 	update_post_meta( $post_id, '_fvs_promo_multi', empty( $_POST['fvs_promo_multi'] ) ? 'no' : 'yes' );
 	$ids = isset( $_POST['fvs_promo_products'] ) ? array_map( 'absint', (array) wp_unslash( $_POST['fvs_promo_products'] ) ) : array();
 	update_post_meta( $post_id, '_fvs_promo_products', array_values( array_unique( array_diff( array_filter( $ids ), array( $post_id ) ) ) ) );
