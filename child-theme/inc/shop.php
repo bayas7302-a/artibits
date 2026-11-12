@@ -981,7 +981,7 @@ function fvs_print_assets() {
  .fvs .fvs-catcard{padding:8px 8px 10px;border-radius:12px}
  .fvs .fvs-catcard:hover{transform:none}
  .fvs-catcard__media{padding:4px 6px 10px}
- .fvs-catcard__label{min-height:36px;padding:7px 8px;font-size:12.5px;line-height:1.3}
+
 
  .fvs-maincat{padding:12px 0;font-size:14px}
  .fvs-subcats{gap:8px;margin-bottom:20px}
@@ -1002,6 +1002,8 @@ function fvs_print_assets() {
 .fvs-catcard:hover .fvs-catcard__img{transform:scale(1.04)}
 .fvs-catcard__label{margin-top:auto;display:flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:16px;font-weight:600;line-height:1.25;text-align:center;transition:background .2s}
 .fvs-catcard:hover .fvs-catcard__label{background:var(--fvs-red-dark)}
+/* Phones (2 cards per row): small category names – stronger selector so it beats the base rule above */
+@media (max-width:640px){.fvs .fvs-catcard .fvs-catcard__label{min-height:34px;padding:6px 8px;font-size:12px;line-height:1.3}}
 /* Category names on one line: the text scales a little with the card width (same size on every card) */
 .fvs .fvs-catcard{container-type:inline-size}
 @supports (font-size:1cqi){
