@@ -795,11 +795,9 @@ function fvs_render_card( $product ) {
 
 	if ( $has_price && $product->is_type( 'simple' ) && $product->is_purchasable() && $product->is_in_stock() ) {
 		fvs_render_buy_form( $product, $title, '', true );
-	} elseif ( function_exists( 'fva_button' ) ) {
-		echo fva_button( $product, 'fva-btn--card' ); // phpcs:ignore – out of stock: "Check Availability"
 	}
 	echo '<a class="fvs-btn fvs-btn--ghost fvs-card__details" href="' . esc_url( $link ) . '">View details</a>';
-	echo fvs_stock_html( $product ); // phpcs:ignore
+	echo fvs_stock_html( $product, true ); // phpcs:ignore – card: small "Check Availability" link when out of stock
 	echo '</div>';
 
 	echo '</div></li>';
@@ -826,19 +824,21 @@ if ( ! defined( 'FVS_SHOW_SHIP_NOTE' ) ) {
 }
 
 /* Stock + shipping line */
-function fvs_stock_html( $product ) {
+function fvs_stock_html( $product, $card = false ) {
 	$status = $product->get_stock_status();
 	$labels = array(
 		'instock'     => 'In stock',
 		'onbackorder' => 'Available on backorder',
 		'outofstock'  => 'Out of stock',
 	);
-	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) && fva_shows_lead( $product ) ) {
-		$status = 'lead'; // out of stock → "Typically available within 2 weeks"
-		$labels['lead'] = FVA_LEAD_TEXT;
-	}
 	$html  = '<div class="fvs-status">';
 	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
+	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) ) {
+		// Out of stock: small "Typically available within 2 weeks" and, on cards, a "Check Availability" link
+		$note = fva_shows_lead( $product ) ? '<span>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
+		$link = $card ? fva_button( $product, 'fva-link', true ) : '';
+		if ( $note || $link ) $html .= '<p class="fvs-stock-note">' . $note . $link . '</p>';
+	}
 	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status ) {
 		$html .= '<p class="fvs-ship"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg><span>Ready to ship in 24h</span></p>';
 	}
@@ -1071,8 +1071,8 @@ function fvs_print_assets() {
 .fvs .fvs-ship span{display:inline;color:#17804A}
 .fvs-stock__dot{width:8px;height:8px;border-radius:50%;background:var(--fvs-green)}
 .fvs-stock--instock .fvs-stock__label{color:var(--fvs-green)}
-.fvs-stock--lead .fvs-stock__dot{background:#D97706}
-.fvs-stock--lead .fvs-stock__label{color:#B45309}
+.fvs-stock-note{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin:2px 0 0 14px;font-size:12px;line-height:1.4;color:#6B7280}
+.fvs .fvs-stock-note .fva-link,.fvs .fvs-stock-note .fva-link:hover,.fvs .fvs-stock-note .fva-link:focus{height:auto;min-height:0;margin:0;padding:0 !important;border:0 !important;background:none !important;box-shadow:none !important;color:var(--fvs-red) !important;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-transform:none;cursor:pointer}
 .fvs .fva-btn{width:100%;height:42px;border:0;background:var(--fvs-red);color:#fff}
 .fvs .fva-btn:hover,.fvs .fva-btn:focus-visible{background:var(--fvs-red-dark);color:#fff}
 .fvs .fva-btn--page{width:auto;min-width:260px;height:48px;padding:0 32px;font-size:15px}

@@ -52,13 +52,13 @@ add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
 } );
 
 /* "Check Availability" button (card + product page) */
-function fva_button( $product, $extra_class = '' ) {
+function fva_button( $product, $extra_class = '', $as_link = false ) {
 	if ( ! fva_shows_check( $product ) ) return '';
 	fva_needs_popup( true );
 	$sku = $product->get_sku();
 	return sprintf(
-		'<button type="button" class="fvs-btn fva-btn %s" data-fva-open data-id="%d" data-name="%s" data-sku="%s">Check Availability</button>',
-		esc_attr( $extra_class ),
+		'<button type="button" class="%s" data-fva-open data-id="%d" data-name="%s" data-sku="%s">Check Availability</button>',
+		esc_attr( ( $as_link ? '' : 'fvs-btn fva-btn ' ) . $extra_class ),
 		(int) $product->get_id(),
 		esc_attr( $product->get_name() ),
 		esc_attr( $sku )
