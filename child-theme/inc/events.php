@@ -14,17 +14,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *   cards 3 per row on desktop, 2 on tablet, 1 on phones (soonest first),
  *   9 cards per page with page numbers (FVE_PER_PAGE; ?when=past&pg=2).
  *   Only the title is required; empty date/time/location are not shown.
- *   Past events stay visible for one month after their last day, then drop off
- *   the page automatically (FVE_KEEP_PAST); they are not deleted.
+ *   Finished events stay on the page under the "Past" tab (FVE_KEEP_PAST = '' keeps
+ *   them; e.g. '+1 month' would hide them a month after their last day – never deleted).
  *   Clicking a card opens a popup with the full description.
  * - An event's own link (/events/name/) opens the events page with its popup.
  * ======================================================================== */
 define( 'FVE_TYPE', 'fanvil_event' );
 define( 'FVE_PER_PAGE', 9 ); // event cards per page
-define( 'FVE_KEEP_PAST', '+1 month' ); // past events stay visible this long after their last day
+if ( ! defined( 'FVE_KEEP_PAST' ) ) {
+	define( 'FVE_KEEP_PAST', '' ); // '' = finished events always shown (Past tab); '+1 month' = hide a month after
+}
 
 /* Last day an event is shown on the site (e.g. event on Oct 10 → shown until Nov 10), '' = no date */
 function fve_visible_until( $event_id ) {
+	if ( '' === FVE_KEEP_PAST ) return ''; // kept for good
 	$last = get_post_meta( $event_id, '_fve_end', true ) ?: get_post_meta( $event_id, '_fve_start', true );
 	return $last ? gmdate( 'Y-m-d', strtotime( $last . ' 12:00:00 ' . FVE_KEEP_PAST ) ) : '';
 }
@@ -165,10 +168,11 @@ add_action( 'manage_' . FVE_TYPE . '_posts_custom_column', function ( $col, $pos
 	if ( 'fve_date' === $col ) {
 		echo esc_html( fve_date_label( $post_id, true ) );
 		$until = fve_visible_until( $post_id );
+		$last  = get_post_meta( $post_id, '_fve_end', true ) ?: get_post_meta( $post_id, '_fve_start', true );
 		if ( $until && $until < wp_date( 'Y-m-d' ) ) {
-			echo '<br><span style="color:#8A8A8A">Hidden from the site (over a month ago)</span>';
-		} elseif ( $until && ( get_post_meta( $post_id, '_fve_end', true ) ?: get_post_meta( $post_id, '_fve_start', true ) ) < wp_date( 'Y-m-d' ) ) {
-			echo '<br><span style="color:#8A8A8A">Past – shown until ' . esc_html( date_i18n( wc_date_format(), strtotime( $until . ' 12:00:00' ) ) ) . '</span>';
+			echo '<br><span style="color:#8A8A8A">Hidden from the site</span>';
+		} elseif ( $last && $last < wp_date( 'Y-m-d' ) ) {
+			echo '<br><span style="color:#8A8A8A">Past – shown under the Past tab</span>';
 		}
 	}
 	if ( 'fve_location' === $col ) echo esc_html( get_post_meta( $post_id, '_fve_location', true ) );
@@ -249,10 +253,17 @@ function fve_render_events( $atts ) {
 	}
 	$n_past = count( $past_ids );
 	$n_up   = count( $ids ) - $n_past;
-	$tabs   = $n_up && $n_past; // tabs only when there is something in both
+	$tabs   = $n_past > 0; // Upcoming / Past tabs whenever there are finished events
 
 	// Which list is shown (?when=upcoming|past) and which page of it (?pg=2)
-	$when = isset( $_GET['when'] ) && 'past' === $_GET['when'] && $n_past ? 'past' : ( $n_up ? 'upcoming' : 'past' ); // phpcs:ignore WordPress.Security.NonceVerification
+	$asked = isset( $_GET['when'] ) ? sanitize_key( $_GET['when'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+	if ( 'past' === $asked && $n_past ) {
+		$when = 'past';
+	} elseif ( 'upcoming' === $asked ) {
+		$when = 'upcoming';
+	} else {
+		$when = $n_up ? 'upcoming' : 'past'; // nothing coming up → open on Past
+	}
 	$list = array_values( array_filter( $ids, function ( $id ) use ( $past_ids, $when ) {
 		return ( 'past' === $when ) === isset( $past_ids[ $id ] );
 	} ) );
@@ -280,7 +291,7 @@ function fve_render_events( $atts ) {
 			printf(
 				'<a class="fve-tab%s" href="%s"%s>%s <span class="fve-tab__n">%d</span></a>',
 				$on ? ' is-active' : '',
-				esc_url( 'upcoming' === $key ? $base : add_query_arg( 'when', 'past', $base ) ),
+				esc_url( add_query_arg( 'when', $key, $base ) ),
 				$on ? ' aria-current="page"' : '',
 				esc_html( $tab[0] ),
 				(int) $tab[1]
@@ -292,6 +303,10 @@ function fve_render_events( $atts ) {
 
 	if ( ! $ids ) {
 		echo '<p class="fve-empty">There are no events at the moment. Please check back soon.</p></div>';
+		return ob_get_clean();
+	}
+	if ( ! $shown ) { // e.g. the Upcoming tab while nothing is planned
+		echo '<p class="fve-empty">There are no upcoming events right now. Please check back soon, or see our <a href="' . esc_url( add_query_arg( 'when', 'past', $base ) ) . '">past events</a>.</p></div>';
 		return ob_get_clean();
 	}
 
