@@ -938,7 +938,7 @@ function fvs_print_assets() {
 .fvs-head__count{margin:0;font-size:14px;color:var(--fvs-muted)}
 
 /* Grids */
-.fvs-cats-head{margin:8px 0 32px}
+.fvs-cats-head{margin:0 0 32px}
 .fvs .fvs-cats-head__title{margin:0;font-size:44px;font-weight:400;line-height:1.15;color:var(--fvs-ink);letter-spacing:-.01em;text-transform:none}
 .fvs .fvs-cats-head__title strong{font-weight:700;color:var(--fvs-red)}
 .fvs .fvs-cats-head__text{margin:12px 0 0;font-size:16px;line-height:1.5;color:#4B5563}
@@ -977,7 +977,7 @@ function fvs_print_assets() {
  .fvs .fvs-card .fvs-ship svg{flex-basis:12px;width:12px;height:12px}
  .fvs .fvs-card .fvs-card__viewcart{font-size:13px}
 
- .fvs--cats{padding:28px 0 44px}
+ .fvs--cats{padding:16px 0 44px}
  .fvs .fvs-catcard{padding:8px 8px 10px;border-radius:12px}
  .fvs .fvs-catcard:hover{transform:none}
  .fvs-catcard__media{padding:4px 6px 10px}
@@ -993,8 +993,8 @@ function fvs_print_assets() {
 }
 
 /* Category card */
-.fvs--cats{padding:64px 0 88px}
-@media (max-width:820px){.fvs--cats{padding:40px 0 56px}}
+.fvs--cats{padding:28px 0 88px} /* same top space as the Promotions page */
+@media (max-width:820px){.fvs--cats{padding:24px 0 56px}}
 .fvs .fvs-catcard{display:flex;flex-direction:column;height:100%;padding:12px 12px 14px;background:#fff;border-radius:14px;box-shadow:0 8px 28px rgba(26,29,33,.08);transition:transform .25s ease,box-shadow .25s ease;color:var(--fvs-ink)}
 .fvs .fvs-catcard:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(26,29,33,.14)}
 .fvs-catcard__media{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;padding:8px 12px 14px}
