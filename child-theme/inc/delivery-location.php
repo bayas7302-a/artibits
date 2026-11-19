@@ -236,7 +236,7 @@ add_action( 'woocommerce_email_customer_details', function ( $order, $sent_to_ad
 			<h2 style="margin:0 0 10px">Delivery location pin</h2>
 			<p style="margin:0;padding:16px 18px;border:1px solid <?php echo esc_attr( $border ); ?>;border-radius:14px;background-color:<?php echo esc_attr( $soft ); ?>;font-size:14px;line-height:1.7">
 				<?php echo esc_html( $text ); ?><br>
-				<a href="<?php echo esc_url( $url ); ?>" target="_blank" style="color:<?php echo esc_attr( $red ); ?>;font-weight:600;text-decoration:none">View on map&nbsp;&#8599;</a>
+				<a href="<?php echo esc_url( $url ); ?>" target="_blank" style="color:<?php echo esc_attr( $red ); ?>;font-weight:600;text-decoration:none">View on map&nbsp;&rarr;</a>
 			</p>
 		</td></tr>
 	</table>

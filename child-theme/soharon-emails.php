@@ -153,6 +153,8 @@ body, .sohe-body { margin:0; padding:0; background-color:{$bg}; -webkit-text-siz
 .sohe-hero { padding:34px 40px 6px; }
 h1 { margin:16px 0 0; padding:0; font-family:{$f}; font-size:26px; font-weight:700; line-height:1.3; color:{$t}; text-align:left; text-shadow:none; }
 .sohe-body-cell { padding:14px 40px 36px; }
+/* WooCommerce paints #body_content white with square corners, which hid the card's rounded bottom */
+#body_content { background-color:transparent; border-radius:0 0 20px 20px; }
 #body_content_inner { font-family:{$f}; font-size:15px; line-height:1.65; color:{$b}; text-align:left; }
 #body_content_inner p { margin:0 0 16px; }
 h2 { margin:30px 0 12px; padding:0; font-family:{$f}; font-size:18px; font-weight:600; line-height:1.35; color:{$t}; text-align:left; }
@@ -275,6 +277,16 @@ function sohe_tracking_html( $order ) {
             </table>
             <p class="sohe-track-msg<?php echo $step < 0 ? ' is-stopped' : ''; ?>"><?php echo esc_html( $message ); ?></p>
 
+            <?php if ( $d['number'] ) : // tracking number, highlighted so customers can't miss it ?>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">
+                    <tr><td class="sohe-trackno" bgcolor="<?php echo esc_attr( sohe_soft( sohe_c( 'red' ), 0.07 ) ); ?>" style="padding:14px 18px;border:1px dashed <?php echo esc_attr( sohe_c( 'red' ) ); ?>;border-radius:14px;background-color:<?php echo esc_attr( sohe_soft( sohe_c( 'red' ), 0.07 ) ); ?>;">
+                        <span style="display:block;font-family:<?php echo esc_attr( sohe_c( 'font' ) ); ?>;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:<?php echo esc_attr( sohe_c( 'muted' ) ); ?>;">Your tracking number<?php echo $d['courier'] ? ' &middot; ' . esc_html( $d['courier'] ) : ''; ?></span>
+                        <span style="display:block;margin-top:4px;font-family:<?php echo esc_attr( sohe_c( 'font' ) ); ?>;font-size:20px;font-weight:700;letter-spacing:.04em;color:<?php echo esc_attr( sohe_c( 'red' ) ); ?>;word-break:break-all;"><?php echo esc_html( $d['number'] ); ?></span>
+                        <?php if ( $d['link'] ) : ?><a href="<?php echo esc_url( $d['link'] ); ?>" target="_blank" style="display:inline-block;margin-top:6px;font-size:13px;font-weight:600;color:<?php echo esc_attr( sohe_c( 'red' ) ); ?>;text-decoration:none;">Track on courier website &rarr;</a><?php endif; ?>
+                    </td></tr>
+                </table>
+            <?php endif; ?>
+
             <?php if ( $step >= 0 && $count > 1 ) : ?>
                 <table role="presentation" class="sohe-steps" width="100%" cellpadding="0" cellspacing="0" border="0">
                     <?php foreach ( $steps as $i => $label ) :
@@ -307,14 +319,10 @@ function sohe_tracking_html( $order ) {
                 </table>
             <?php endif; ?>
 
-            <?php if ( $d['courier'] || $d['number'] || $d['eta'] || $d['update'] ) : ?>
+            <?php if ( ( $d['courier'] && ! $d['number'] ) || $d['eta'] || $d['update'] ) : ?>
                 <table role="presentation" class="sohe-details" cellpadding="0" cellspacing="0" border="0">
-                    <?php if ( $d['courier'] ) : ?>
+                    <?php if ( $d['courier'] && ! $d['number'] ) : // with a number, the courier is shown in the box above ?>
                         <tr><th>Courier</th><td><?php echo esc_html( $d['courier'] ); ?></td></tr>
-                    <?php endif; ?>
-                    <?php if ( $d['number'] ) : ?>
-                        <tr><th>Tracking number</th><td><?php echo esc_html( $d['number'] ); ?>
-                            <?php if ( $d['link'] ) : ?><br><a href="<?php echo esc_url( $d['link'] ); ?>">Track on courier website &rarr;</a><?php endif; ?></td></tr>
                     <?php endif; ?>
                     <?php if ( $d['eta'] && $step !== $last ) : ?>
                         <tr><th>Estimated delivery</th><td><?php echo esc_html( date_i18n( 'l, ' . wc_date_format(), strtotime( $d['eta'] . ' 12:00:00' ) ) ); ?></td></tr>

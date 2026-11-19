@@ -172,7 +172,12 @@ function soharon_track_page_url( $order = null ) {
 
     $url = get_permalink( $page_id );
     if ( $url && $order instanceof WC_Order ) {
-        $url = add_query_arg( array( 'order_number' => $order->get_order_number(), 'key' => $order->get_order_key() ), $url );
+        // Prefer the tracking number (fills the box with it); the key opens the full order straight away
+        $tracking = function_exists( 'soharon_track_delivery' ) ? soharon_track_delivery( $order )['number'] : '';
+        $url      = add_query_arg( array(
+            'order_number' => rawurlencode( '' !== $tracking ? $tracking : $order->get_order_number() ),
+            'key'          => $order->get_order_key(),
+        ), $url );
     }
     return $url;
 }
@@ -603,7 +608,7 @@ function soharon_track_hidden_query_fields( $url ) {
 /* ============================================
  * FRONT END: [soharon_track_order]
  * Only the order number is asked for.
- * ?order_number=1234            → fills in the order number
+ * ?order_number=1234            → fills in the order number (a tracking number works too)
  * ?order_number=1234&key=wc_…   → shows the full order straight away (link from the order screen)
  * Privacy: with the order number alone, visitors see the delivery status only
  * (tracker, courier, tracking number, estimated delivery, latest update).
@@ -650,11 +655,11 @@ function soharon_track_order_shortcode( $atts ) {
         <?php if ( '' !== trim( $atts['title'] ) ) : ?>
             <h2 class="soharon-track-lookup__title"><?php echo esc_html( $atts['title'] ); ?></h2>
         <?php endif; ?>
-        <p class="soharon-track-lookup__sub">Enter your order number to see its status.</p>
+        <p class="soharon-track-lookup__sub">Enter your order number or tracking number to see its status.</p>
         <div class="soharon-track-lookup__fields">
             <p>
-                <label for="soharon-track-number">Order number <span class="soharon-track-req" aria-hidden="true">*</span></label>
-                <input type="text" id="soharon-track-number" name="soharon_track_number" value="<?php echo esc_attr( $number ); ?>" placeholder="e.g. 1234" inputmode="numeric" autocomplete="off" required>
+                <label for="soharon-track-number">Order or tracking number <span class="soharon-track-req" aria-hidden="true">*</span></label>
+                <input type="text" id="soharon-track-number" name="soharon_track_number" value="<?php echo esc_attr( $number ); ?>" placeholder="e.g. 1234" autocomplete="off" required>
             </p>
         </div>
         <button type="submit" name="soharon_track_submit" value="1" class="soharon-track-btn">Track order</button>
@@ -684,7 +689,7 @@ function soharon_track_order_shortcode( $atts ) {
 function soharon_track_lookup( $number, $key = '' ) {
     $number = ltrim( trim( (string) $number ), '#' );
     if ( '' === $number ) {
-        return array( false, 'Please enter your order number.', false );
+        return array( false, 'Please enter your order number or tracking number.', false );
     }
 
     $ip       = class_exists( 'WC_Geolocation' ) ? WC_Geolocation::get_ip_address() : ( isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '' );
@@ -700,12 +705,26 @@ function soharon_track_lookup( $number, $key = '' ) {
     $order    = ctype_digit( (string) $order_id ) ? wc_get_order( absint( $order_id ) ) : false;
     $found    = $order && 'shop_order' === $order->get_type() && ! $order->has_status( 'checkout-draft' );
 
+    // Tracking number: checked first when it matches an order, or when no order has that number
+    if ( strlen( $number ) >= 4 ) {
+        $by_tracking = wc_get_orders( array(
+            'limit'      => 1,
+            'type'       => 'shop_order',
+            'status'     => array_diff( array_keys( wc_get_order_statuses() ), array( 'wc-checkout-draft' ) ),
+            'meta_query' => array( array( 'key' => '_soharon_tracking_number', 'value' => $number ) ), // phpcs:ignore WordPress.DB.SlowDBQuery
+        ) );
+        if ( $by_tracking ) {
+            $order = $by_tracking[0];
+            $found = true;
+        }
+    }
+
     $rate['total']++;
     if ( ! $found ) $rate['fails']++;
     set_transient( $rate_key, $rate, 15 * MINUTE_IN_SECONDS );
 
     if ( ! $found ) {
-        return array( false, 'We couldn\'t find an order with that number. Please check it and try again.', false );
+        return array( false, 'We couldn\'t find an order with that order or tracking number. Please check it and try again.', false );
     }
 
     $own_order = is_user_logged_in() && (int) $order->get_customer_id() === get_current_user_id();
