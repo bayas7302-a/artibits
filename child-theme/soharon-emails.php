@@ -159,6 +159,8 @@ h1 { margin:16px 0 0; padding:0; font-family:{$f}; font-size:26px; font-weight:7
 /* WooCommerce paints #body_content white with square corners, which hid the card's rounded bottom */
 #body_content { background-color:transparent; border-radius:0 0 20px 20px; }
 #body_content_inner hr { display:none; height:0; margin:0; border:0; }
+/* Keep the gap the divider lines used to give: items, totals and customer note boxes */
+#body_content_inner table.td + table.td { margin-top:20px !important; }
 #body_content_inner { font-family:{$f}; font-size:15px; line-height:1.65; color:{$b}; text-align:left; }
 #body_content_inner p { margin:0 0 16px; }
 h2 { margin:30px 0 12px; padding:0; font-family:{$f}; font-size:18px; font-weight:600; line-height:1.35; color:{$t}; text-align:left; }
