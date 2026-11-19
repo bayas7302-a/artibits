@@ -133,6 +133,9 @@ function sohe_email_footer( $email = null ) {
     <?php
 }
 
+/* No grey divider lines between the email sections (items, totals, addresses) */
+add_filter( 'woocommerce_email_body_display_section_divider', '__return_false' );
+
 /* Styles: added after WooCommerce's own, then inlined by WooCommerce */
 add_filter( 'woocommerce_email_styles', function ( $css, $email = null ) {
     return $css . sohe_email_css();
@@ -155,6 +158,7 @@ h1 { margin:16px 0 0; padding:0; font-family:{$f}; font-size:26px; font-weight:7
 .sohe-body-cell { padding:14px 40px 36px; }
 /* WooCommerce paints #body_content white with square corners, which hid the card's rounded bottom */
 #body_content { background-color:transparent; border-radius:0 0 20px 20px; }
+#body_content_inner hr { display:none; height:0; margin:0; border:0; }
 #body_content_inner { font-family:{$f}; font-size:15px; line-height:1.65; color:{$b}; text-align:left; }
 #body_content_inner p { margin:0 0 16px; }
 h2 { margin:30px 0 12px; padding:0; font-family:{$f}; font-size:18px; font-weight:600; line-height:1.35; color:{$t}; text-align:left; }
