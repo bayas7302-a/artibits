@@ -1025,10 +1025,10 @@ function fvs_print_assets() {
 @media (max-width:560px){.fvs--promo{padding-top:24px}}
 .fvs-badges{position:absolute;top:12px;left:12px;right:12px;z-index:2;display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}
 .fvs-badges .fvs-badge{position:static}
-.fvs-badges .fvs-badge--label{background:var(--fvs-ink);letter-spacing:.02em}
+.fvs-badges .fvs-badge--label{background:#E8A24C;color:#111111;letter-spacing:.02em}
 .fvs-card__offer{display:block;margin-top:6px;font-size:13px;font-weight:400;color:var(--fvs-red)}
 .fvs-card__offer strong{font-weight:600}
-.fvs-badge{position:absolute;top:12px;left:12px;z-index:2;padding:4px 10px;border-radius:999px;background:var(--fvs-red);color:#fff;font-size:12px;font-weight:600;line-height:1.3}
+.fvs-badge{position:absolute;top:12px;left:12px;z-index:2;padding:4px 10px;border-radius:999px;background:#E8A24C;color:#000;font-size:12px;font-weight:600;line-height:1.3}
 .fvs-media{position:relative;background:var(--fvs-soft);overflow:hidden;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 .fvs .fvs-media__link,.fvs .fvs-media__link:focus{display:block;outline:none;border:0;box-shadow:none}
 .fvs-media__track{display:flex;transition:transform .55s cubic-bezier(.22,.61,.36,1);will-change:transform}
