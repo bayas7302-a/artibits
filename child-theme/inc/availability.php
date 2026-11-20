@@ -16,12 +16,22 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 if ( ! defined( 'FVA_LEAD_TEXT' ) ) {
-	define( 'FVA_LEAD_TEXT', 'Typically available within 2 weeks' );
+	define( 'FVA_LEAD_TEXT', 'Typically available within 2 weeks' ); // default text (2 weeks)
+}
+
+/* Weeks for "Typically available within … weeks" – set per product, default 2 */
+function fva_lead_weeks( $product ) {
+	$w = (int) $product->get_meta( '_fva_lead_weeks' );
+	return $w > 0 ? min( $w, 52 ) : 2;
+}
+function fva_lead_text( $product ) {
+	$w = fva_lead_weeks( $product );
+	return sprintf( 'Typically available within %d %s', $w, 1 === $w ? 'week' : 'weeks' );
 }
 
 function fva_modes() {
 	return array(
-		'both'  => '"Typically available within 2 weeks" + Check Availability',
+		'both'  => '"Typically available within … weeks" + Check Availability',
 		'check' => 'Only "Check Availability"',
 	);
 }
@@ -32,7 +42,7 @@ function fva_mode( $product ) {
 function fva_in_modes() {
 	return array(
 		'instock' => '"In stock"',
-		'lead'    => '"Typically available within 2 weeks"',
+		'lead'    => '"Typically available within … weeks"',
 	);
 }
 function fva_in_mode( $product ) {
@@ -66,16 +76,31 @@ add_action( 'woocommerce_product_options_stock_status', function () {
 		'desc_tip'    => true,
 		'description' => 'What customers see on the product card and page while this product is out of stock. The Check Availability enquiry is always offered.',
 	) );
+	global $product_object;
+	$weeks = $product_object instanceof WC_Product ? (int) $product_object->get_meta( '_fva_lead_weeks' ) : 0;
+	woocommerce_wp_text_input( array(
+		'id'                => '_fva_lead_weeks',
+		'label'             => 'Available within (weeks)',
+		'type'              => 'number',
+		'value'             => $weeks > 0 ? $weeks : 2,
+		'wrapper_class'     => 'fva-weeks',
+		'custom_attributes' => array( 'min' => 1, 'max' => 52, 'step' => 1 ),
+		'desc_tip'          => true,
+		'description'       => 'Number of weeks in "Typically available within … weeks". 1 shows "1 week".',
+	) );
 	?>
 	<script>
 	/* Show the dropdown that matches the stock status (both while stock is managed by quantity) */
 	jQuery(function ($) {
 		function sync() {
 			var managed = $('#_manage_stock').is(':checked'), st = $('#_stock_status').val();
-			$('.fva-when-in').toggle(managed || st !== 'outofstock');
-			$('.fva-when-out').toggle(managed || st === 'outofstock');
+			var showIn = managed || st !== 'outofstock', showOut = managed || st === 'outofstock';
+			$('.fva-when-in').toggle(showIn);
+			$('.fva-when-out').toggle(showOut);
+			/* Weeks: only while "Typically available within … weeks" is chosen */
+			$('.fva-weeks').toggle((showIn && $('#_fva_in_mode').val() === 'lead') || (showOut && $('#_fva_oos_mode').val() === 'both'));
 		}
-		$(document).on('change', '#_stock_status, #_manage_stock', sync); sync();
+		$(document).on('change', '#_stock_status, #_manage_stock, #_fva_in_mode, #_fva_oos_mode', sync); sync();
 	});
 	</script>
 	<?php
@@ -84,6 +109,10 @@ add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
 	if ( isset( $_POST['_fva_oos_mode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- WooCommerce checks the product form nonce
 		$mode = sanitize_key( wp_unslash( $_POST['_fva_oos_mode'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		$product->update_meta_data( '_fva_oos_mode', isset( fva_modes()[ $mode ] ) ? $mode : 'both' );
+	}
+	if ( isset( $_POST['_fva_lead_weeks'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		$w = absint( wp_unslash( $_POST['_fva_lead_weeks'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$product->update_meta_data( '_fva_lead_weeks', $w > 0 ? min( $w, 52 ) : 2 );
 	}
 	if ( isset( $_POST['_fva_in_mode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 		$in = sanitize_key( wp_unslash( $_POST['_fva_in_mode'] ) ); // phpcs:ignore WordPress.Security.NonceVerification

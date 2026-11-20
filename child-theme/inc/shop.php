@@ -840,7 +840,7 @@ function fvs_stock_html( $product, $card = false ) {
 	}
 	if ( $lead || ( 'outofstock' === $status && function_exists( 'fva_button' ) ) ) {
 		// Small "Typically available within 2 weeks" (in or out of stock, set per product) and, on out-of-stock cards, a "Check Availability" link
-		$note = $lead ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
+		$note = $lead ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( function_exists( 'fva_lead_text' ) ? fva_lead_text( $product ) : FVA_LEAD_TEXT ) . '</span>' : '';
 		$link = $card && 'outofstock' === $status ? fva_button( $product, 'fva-link', true ) : '';
 		if ( $note || $link ) $html .= '<p class="fvs-stock-note">' . $note . $link . '</p>';
 	}
