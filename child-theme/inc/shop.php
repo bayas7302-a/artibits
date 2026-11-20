@@ -833,18 +833,18 @@ function fvs_stock_html( $product, $card = false ) {
 		'outofstock'  => 'Out of stock',
 	);
 	// "Typically available within 2 weeks" replaces the "Out of stock" line
-	$lead  = 'outofstock' === $status && function_exists( 'fva_shows_lead' ) && fva_shows_lead( $product );
+	$lead  = function_exists( 'fva_shows_lead' ) && fva_shows_lead( $product ); // in stock or out of stock, set per product
 	$html  = '<div class="fvs-status">';
 	if ( ! $lead ) {
 		$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
 	}
-	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) ) {
-		// Out of stock: small "Typically available within 2 weeks" and, on cards, a "Check Availability" link
+	if ( $lead || ( 'outofstock' === $status && function_exists( 'fva_button' ) ) ) {
+		// Small "Typically available within 2 weeks" (in or out of stock, set per product) and, on out-of-stock cards, a "Check Availability" link
 		$note = $lead ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
-		$link = $card ? fva_button( $product, 'fva-link', true ) : '';
+		$link = $card && 'outofstock' === $status ? fva_button( $product, 'fva-link', true ) : '';
 		if ( $note || $link ) $html .= '<p class="fvs-stock-note">' . $note . $link . '</p>';
 	}
-	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status ) {
+	if ( FVS_SHOW_SHIP_NOTE && 'instock' === $status && ! $lead ) {
 		$html .= '<p class="fvs-ship"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="17.5" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.8"/></svg><span>Ready to ship in 24h</span></p>';
 	}
 	return $html . '</div>';

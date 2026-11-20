@@ -3,8 +3,11 @@
  * Out-of-stock products – "Typically available within 2 weeks" and "Check Availability".
  * Loaded by functions.php – do not load this file on its own.
  *
- * Product → Product data → Inventory → "When out of stock, show":
- *   both (default) / only "Typically available within 2 weeks" / only "Check Availability".
+ * Product → Product data → Inventory:
+ *   "When in stock, show": "In stock" (default) / "Typically available within 2 weeks"
+ *     (the product can still be bought; only the label changes).
+ *   "When out of stock, show":
+ *     both (default) / only "Typically available within 2 weeks" / only "Check Availability".
  * "Check Availability" opens a popup (name, email, phone, quantity). The request is
  * emailed to the shop with the product name, SKU and link; Reply goes to the customer.
  * Recipient: WooCommerce → Settings → Products → Inventory → "Notification recipient"
@@ -27,8 +30,20 @@ function fva_mode( $product ) {
 	$mode = $product->get_meta( '_fva_oos_mode' );
 	return isset( fva_modes()[ $mode ] ) ? $mode : 'both';
 }
+function fva_in_modes() {
+	return array(
+		'instock' => '"In stock"',
+		'lead'    => '"Typically available within 2 weeks"',
+	);
+}
+function fva_in_mode( $product ) {
+	return 'lead' === $product->get_meta( '_fva_in_mode' ) ? 'lead' : 'instock';
+}
 function fva_shows_lead( $product ) {
-	return ! $product->is_in_stock() && in_array( fva_mode( $product ), array( 'both', 'lead' ), true );
+	if ( $product->is_in_stock() ) {
+		return 'lead' === fva_in_mode( $product );
+	}
+	return in_array( fva_mode( $product ), array( 'both', 'lead' ), true );
 }
 function fva_shows_check( $product ) {
 	return ! $product->is_in_stock() && in_array( fva_mode( $product ), array( 'both', 'check' ), true );
@@ -37,17 +52,43 @@ function fva_shows_check( $product ) {
 /* Admin: Product data → Inventory */
 add_action( 'woocommerce_product_options_stock_status', function () {
 	woocommerce_wp_select( array(
+		'id'            => '_fva_in_mode',
+		'label'         => 'When in stock, show',
+		'options'       => fva_in_modes(),
+		'wrapper_class' => 'fva-when-in',
+		'desc_tip'      => true,
+		'description'   => 'Label on the product card and page while this product is in stock. The product can still be added to the cart either way.',
+	) );
+	woocommerce_wp_select( array(
+		'wrapper_class' => 'fva-when-out',
 		'id'          => '_fva_oos_mode',
 		'label'       => 'When out of stock, show',
 		'options'     => fva_modes(),
 		'desc_tip'    => true,
 		'description' => 'What customers see on the product card and page while this product is out of stock.',
 	) );
+	?>
+	<script>
+	/* Show the dropdown that matches the stock status (both while stock is managed by quantity) */
+	jQuery(function ($) {
+		function sync() {
+			var managed = $('#_manage_stock').is(':checked'), st = $('#_stock_status').val();
+			$('.fva-when-in').toggle(managed || st !== 'outofstock');
+			$('.fva-when-out').toggle(managed || st === 'outofstock');
+		}
+		$(document).on('change', '#_stock_status, #_manage_stock', sync); sync();
+	});
+	</script>
+	<?php
 } );
 add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
 	if ( isset( $_POST['_fva_oos_mode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- WooCommerce checks the product form nonce
 		$mode = sanitize_key( wp_unslash( $_POST['_fva_oos_mode'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		$product->update_meta_data( '_fva_oos_mode', isset( fva_modes()[ $mode ] ) ? $mode : 'both' );
+	}
+	if ( isset( $_POST['_fva_in_mode'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		$in = sanitize_key( wp_unslash( $_POST['_fva_in_mode'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$product->update_meta_data( '_fva_in_mode', isset( fva_in_modes()[ $in ] ) ? $in : 'instock' );
 	}
 } );
 
