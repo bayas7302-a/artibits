@@ -6,8 +6,8 @@
  * Product → Product data → Inventory:
  *   "When in stock, show": "In stock" (default) / "Typically available within 2 weeks"
  *     (the product can still be bought; only the label changes).
- *   "When out of stock, show":
- *     both (default) / only "Typically available within 2 weeks" / only "Check Availability".
+ *   "When out of stock, show": Check Availability (enquiry popup) is always shown;
+ *     with or without "Typically available within 2 weeks" (default: with).
  * "Check Availability" opens a popup (name, email, phone, quantity). The request is
  * emailed to the shop with the product name, SKU and link; Reply goes to the customer.
  * Recipient: WooCommerce → Settings → Products → Inventory → "Notification recipient"
@@ -21,9 +21,8 @@ if ( ! defined( 'FVA_LEAD_TEXT' ) ) {
 
 function fva_modes() {
 	return array(
-		'both'  => 'Both: "Typically available within 2 weeks" + Check Availability',
-		'lead'  => 'Only "Typically available within 2 weeks"',
-		'check' => 'Only "Check Availability" button',
+		'both'  => '"Typically available within 2 weeks" + Check Availability',
+		'check' => 'Only "Check Availability"',
 	);
 }
 function fva_mode( $product ) {
@@ -43,10 +42,10 @@ function fva_shows_lead( $product ) {
 	if ( $product->is_in_stock() ) {
 		return 'lead' === fva_in_mode( $product );
 	}
-	return in_array( fva_mode( $product ), array( 'both', 'lead' ), true );
+	return 'both' === fva_mode( $product ); // older "lead only" setting counts as both
 }
 function fva_shows_check( $product ) {
-	return ! $product->is_in_stock() && in_array( fva_mode( $product ), array( 'both', 'check' ), true );
+	return ! $product->is_in_stock(); // out of stock: customers can always send an enquiry
 }
 
 /* Admin: Product data → Inventory */
@@ -65,7 +64,7 @@ add_action( 'woocommerce_product_options_stock_status', function () {
 		'label'       => 'When out of stock, show',
 		'options'     => fva_modes(),
 		'desc_tip'    => true,
-		'description' => 'What customers see on the product card and page while this product is out of stock.',
+		'description' => 'What customers see on the product card and page while this product is out of stock. The Check Availability enquiry is always offered.',
 	) );
 	?>
 	<script>
