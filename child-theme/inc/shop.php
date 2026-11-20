@@ -832,11 +832,15 @@ function fvs_stock_html( $product, $card = false ) {
 		'onbackorder' => 'Available on backorder',
 		'outofstock'  => 'Out of stock',
 	);
+	// "Typically available within 2 weeks" replaces the "Out of stock" line
+	$lead  = 'outofstock' === $status && function_exists( 'fva_shows_lead' ) && fva_shows_lead( $product );
 	$html  = '<div class="fvs-status">';
-	$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
+	if ( ! $lead ) {
+		$html .= '<p class="fvs-stock fvs-stock--' . esc_attr( $status ) . '"><span class="fvs-stock__dot" aria-hidden="true"></span><span class="fvs-stock__label">' . esc_html( isset( $labels[ $status ] ) ? $labels[ $status ] : $status ) . '</span></p>';
+	}
 	if ( 'outofstock' === $status && function_exists( 'fva_shows_lead' ) ) {
 		// Out of stock: small "Typically available within 2 weeks" and, on cards, a "Check Availability" link
-		$note = fva_shows_lead( $product ) ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
+		$note = $lead ? '<span class="fvs-stock-note__lead"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' . esc_html( FVA_LEAD_TEXT ) . '</span>' : '';
 		$link = $card ? fva_button( $product, 'fva-link', true ) : '';
 		if ( $note || $link ) $html .= '<p class="fvs-stock-note">' . $note . $link . '</p>';
 	}
