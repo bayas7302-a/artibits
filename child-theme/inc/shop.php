@@ -1045,7 +1045,11 @@ function fvs_print_assets() {
 .fvs-card__title{margin:0;font-size:17px;font-weight:600;line-height:1.2}
 .fvs-card__title a:hover{color:var(--fvs-red)}
 .fvs-card__subtitle{margin:4px 0 18px;font-size:14px;line-height:1.45;color:var(--fvs-muted);min-height:2.9em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.fvs-card__buy{margin-top:auto}
+.fvs-card__buy{flex:1;display:flex;flex-direction:column}
+/* Price sits right under the subtitle; any spare height goes above "View details" (cards without the cart row had a gap above the price) */
+.fvs .fvs-card .fvs-card__buy > .fvs-card__details{margin-top:auto}
+.fvs .fvs-card .fvs-card__buy > .fvs-card__actions{margin-bottom:10px}
+@media (max-width:560px){.fvs .fvs-card .fvs-card__buy > .fvs-card__actions{margin-bottom:8px}}
 .fvs-card__price{font-size:19px;font-weight:600;margin-bottom:14px;line-height:1.3}
 .fvs-card__price del{color:var(--fvs-muted);font-weight:400;font-size:15px;margin-right:6px}
 .fvs-card__price ins{text-decoration:none}
